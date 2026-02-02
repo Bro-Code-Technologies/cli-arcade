@@ -9,23 +9,27 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
-const projectRoot = path.resolve(__dirname, "..");
-const cliPath = path.join(projectRoot, "cli.py");
+const webRoot = __dirname;
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(webRoot, "public")));
+
+const parseArgs = (value) => {
+  if (!value) {
+    return [];
+  }
+  const parts = value.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  return parts.map((p) => p.replace(/^"|"$/g, ""));
+};
 
 const startPty = () => {
-  const override = process.env.CLI_ARCADE_PY;
   const isWin = process.platform === "win32";
-  let pythonCmd = override || (isWin ? "py" : "python3");
-  let args = [cliPath];
-  if (!override && isWin) {
-    args = ["-3", cliPath];
-  }
+  const cmd = process.env.CLI_ARCADE_CMD || (isWin ? "clia" : "clia");
+  const args = parseArgs(process.env.CLI_ARCADE_ARGS);
+  const cwd = process.env.CLI_ARCADE_CWD || webRoot;
 
-  return pty.spawn(pythonCmd, args, {
+  return pty.spawn(cmd, args, {
     name: "xterm-256color",
-    cwd: projectRoot,
+    cwd,
     env: { ...process.env, TERM: "xterm-256color" },
     cols: 100,
     rows: 30
