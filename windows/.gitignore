@@ -1,0 +1,45 @@
+.venv
+.env
+__pycache__
+ignore
+highscores.json
+save_data
+save_data_cache
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs / local env files
+.env
+.venv/
+venv/
+env/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test / coverage / lint
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Build / packaging artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+pip-wheel-metadata/
+
+# Logs and runtime files
+*.log
+*.bak
+
+# Optional: lockfiles / local config
+*.env

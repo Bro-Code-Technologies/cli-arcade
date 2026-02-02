@@ -1,0 +1,8 @@
+include PYPI_README.md
+include LICENSE
+include setup.cfg
+recursive-include game_classes *
+recursive-include games *
+global-exclude __pycache__
+prune *.egg-info
+global-exclude *.egg-info/*
