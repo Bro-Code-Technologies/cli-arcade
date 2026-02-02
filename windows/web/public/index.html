@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CLI Arcade Terminal</title>
+  <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #0b0f14; color: #cdd9e5; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans"; }
+    header { padding: 10px 14px; border-bottom: 1px solid #1f2937; display: flex; gap: 12px; align-items: center; }
+    header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+    header span { color: #8b949e; font-size: 12px; }
+    #terminal { height: calc(100vh - 44px); width: 100vw; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CLI Arcade</h1>
+    <span>Terminal in browser (xterm.js)</span>
+  </header>
+  <div id="terminal"></div>
+  <script src="https://unpkg.com/xterm/lib/xterm.js"></script>
+  <script src="https://unpkg.com/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+  <script src="./client.js"></script>
+</body>
+</html>
