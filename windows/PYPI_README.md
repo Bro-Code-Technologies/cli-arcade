@@ -32,3 +32,6 @@ Commands
 
 License
 - MIT
+
+Changelog
+- See CHANGELOG.md

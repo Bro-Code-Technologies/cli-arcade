@@ -101,3 +101,6 @@ Contributing
 
 License
 - MIT
+
+Changelog
+- See CHANGELOG.md
