@@ -39,8 +39,6 @@ class Game(GameBase):
       })
       super().__init__(stdscr, player_name, 0.12, ptk.COLOR_GREEN)
       self.init_scores([['score', 0], ['stars', 0], ['length', 0]])
-      self.width += 1
-      self.height += 1
 
       # game state
       self.special = None
@@ -134,7 +132,7 @@ class Game(GameBase):
       try:
         for fx in range(0, self.width + 1):
           try:
-            self.stdscr.addch(floor_y, fx, block, ptk.color_pair(ptk.COLOR_GREEN))
+            self.stdscr.addch(floor_y, fx, block, ptk.color_pair(ptk.COLOR_BLUE))
           except Exception:
             pass
       except Exception:
@@ -144,7 +142,7 @@ class Game(GameBase):
       try:
         for wy in range(0, floor_y + 1):
           try:
-            self.stdscr.addch(wy, right_col, block, ptk.color_pair(ptk.COLOR_GREEN))
+            self.stdscr.addch(wy, right_col, block, ptk.color_pair(ptk.COLOR_BLUE))
           except Exception:
             pass
       except Exception:
