@@ -438,6 +438,10 @@ def main():
         _reset_game_by_index(choice, yes=yes)
         return
 
+    try:
+        verify_terminal_size('CLI Arcade', 70, 20)
+    except SystemExit:
+        return
     # run the menu under ptk, then launch the chosen game's main()
     choice = ptk.wrapper(_menu)
     if choice is None:
