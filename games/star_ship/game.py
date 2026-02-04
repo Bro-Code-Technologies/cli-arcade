@@ -39,6 +39,8 @@ class Game(GameBase):
       })
       super().__init__(stdscr, player_name, 0.12, ptk.COLOR_GREEN)
       self.init_scores([['score', 0], ['stars', 0], ['length', 0]])
+      self.width += 1
+      self.height += 1
 
       # game state
       self.special = None
@@ -122,6 +124,31 @@ class Game(GameBase):
 
     def draw(self):
       self.draw_info()
+      # draw a green floor and a right wall (similar to Byte Bouncer)
+      try:
+        block = glyph('BLOCK')
+      except Exception:
+        block = '#'
+      # floor just below the visible play area
+      floor_y = self.height
+      try:
+        for fx in range(0, self.width + 1):
+          try:
+            self.stdscr.addch(floor_y, fx, block, ptk.color_pair(ptk.COLOR_GREEN))
+          except Exception:
+            pass
+      except Exception:
+        pass
+      # right wall drawn off-screen to the right (safe to attempt)
+      right_col = self.width + 1
+      try:
+        for wy in range(0, floor_y + 1):
+          try:
+            self.stdscr.addch(wy, right_col, block, ptk.color_pair(ptk.COLOR_GREEN))
+          except Exception:
+            pass
+      except Exception:
+        pass
       # draw game elements (ship + star) on top of title/info
       try:
         # draw yellow stars
