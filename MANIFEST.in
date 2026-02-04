@@ -1,5 +1,4 @@
 include PYPI_README.md
-include CHANGELOG.md
 include LICENSE
 include setup.cfg
 recursive-include game_classes *
