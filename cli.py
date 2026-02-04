@@ -1,4 +1,5 @@
 from game_classes import ptk
+from game_classes.tools import verify_terminal_size
 import os
 import importlib.util
 import argparse
@@ -207,6 +208,22 @@ def _run_game_by_index(choice):
                 pass
     if hasattr(mod, 'main'):
         try:
+            # If the module exposes minimum terminal requirements, verify
+            # them before entering the alternate screen so messages are visible
+            try:
+                min_cols = getattr(mod, 'MIN_COLS', None)
+                min_rows = getattr(mod, 'MIN_ROWS', None)
+                if min_cols is None and hasattr(mod, 'MIN_TERMINAL'):
+                    t = getattr(mod, 'MIN_TERMINAL')
+                    if isinstance(t, (tuple, list)) and len(t) >= 2:
+                        min_cols, min_rows = t[0], t[1]
+                if min_cols is not None and min_rows is not None:
+                    verify_terminal_size(name, int(min_cols), int(min_rows))
+            except SystemExit:
+                return
+            except Exception:
+                pass
+
             ptk.wrapper(mod.main)
         except Exception as e:
             print(f"  [ERROR] Error running game {name}: {e}")

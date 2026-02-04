@@ -23,6 +23,10 @@ TITLE = [
     r' (____/(__/   (__) (____)  (____/ \__/ \____/\_)__) \___)(____)(__\_) '
 ]
 
+# minimum terminal size required to run this game (cols, rows)
+MIN_COLS = 70
+MIN_ROWS = 20
+
 class Game(GameBase):
     def __init__(self, stdscr, player_name='Player'):
       self.title = TITLE
@@ -187,7 +191,6 @@ class Game(GameBase):
         self.paddle_x = int(clamp(self.paddle_x + 2, 0, self.width - self.paddle_w))
 
 def main(stdscr):
-  verify_terminal_size('Byte Bouncer')
   init_ptk(stdscr)
   while True:
     game = Game(stdscr)

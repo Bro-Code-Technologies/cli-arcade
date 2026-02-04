@@ -293,6 +293,19 @@ def _enable_vt_mode():
         pass
 
 
+def exit_alternate_screen():
+    """Exit the alternate screen buffer and restore the cursor/attributes.
+
+    Safe to call from anywhere; used when printing messages that must
+    appear in the main terminal/scrollback.
+    """
+    try:
+        sys.stdout.write("\x1b[0m\x1b[?25h\x1b[?1049l")
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+
 def wrapper(func):
     stdscr = _Screen()
     try:

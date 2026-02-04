@@ -25,6 +25,10 @@ TITLE = [
   "                            /_/       "                            
 ]
 
+# minimum terminal size required to run this game (cols, rows)
+MIN_COLS = 70
+MIN_ROWS = 20
+
 class Game(GameBase):
     def __init__(self, stdscr, player_name='Player'):
       self.title = TITLE
@@ -222,7 +226,6 @@ class Game(GameBase):
           self.dir = new_dir
 
 def main(stdscr):
-  verify_terminal_size('Star Ship')
   init_ptk(stdscr)
   while True:
     game = Game(stdscr)

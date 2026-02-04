@@ -27,6 +27,10 @@ TITLE = [
     r'             \/            \/        \/     \/                            \/    \/          \/ '
 ]
 
+# minimum terminal size required to run this game (cols, rows)
+MIN_COLS = 100
+MIN_ROWS = 30
+
 SHAPES = {
   'I': [[(0,1),(1,1),(2,1),(3,1)], [(2,0),(2,1),(2,2),(2,3)]],
   'O': [[(0,0),(1,0),(0,1),(1,1)]],
@@ -359,7 +363,6 @@ class Game(GameBase):
         self.hard_drop()
 
 def main(stdscr):
-  verify_terminal_size('Terminal Tumble', 100, 30)
   init_ptk(stdscr)
   while True:
     game = Game(stdscr)

@@ -12,12 +12,14 @@ def verify_terminal_size(game_name, min_cols=70, min_rows=20):
         except Exception:
             cols, rows = 0, 0
     if cols < min_cols or rows < min_rows:
-        print(f"  [ACTION] Terminal size is too small to run {game_name}.")
-        if cols < min_cols:
-          print(f"  [ACTION] Actual Colums: {cols} Required Colums: {min_cols}")
-        if rows < min_rows:
-          print(f"  [ACTION] Actual Rows: {rows} Required Rows: {min_rows}")
-        raise SystemExit(1)
+                # Print a clear message and exit; callers should check sizes before
+                # entering the alternate screen when possible.
+                print(f"  [ACTION] Terminal size is too small to run {game_name}.")
+                if cols < min_cols:
+                    print(f"  [ACTION] Actual Colums: {cols} Required Colums: {min_cols}")
+                if rows < min_rows:
+                    print(f"  [ACTION] Actual Rows: {rows} Required Rows: {min_rows}")
+                raise SystemExit(1)
 
 def get_terminal_size(stdscr):
     try:
