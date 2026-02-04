@@ -221,7 +221,7 @@ def _menu(stdscr):
             top = sel - avail + 1
 
 
-def _run_game_by_index(choice):
+def _run_game_by_index(choice, from_menu=False):
     """Load and run the game given by numeric index in GAMES."""
     name, relpath = GAMES[choice]
     base = os.path.dirname(__file__)
@@ -271,6 +271,12 @@ def _run_game_by_index(choice):
                 pass
 
             ptk.wrapper(mod.main)
+            # If launched via `clia run`, exit the process after the game ends.
+            if not from_menu:
+                try:
+                    sys.exit(0)
+                except SystemExit:
+                    raise
         except Exception as e:
             print(f"  [ERROR] Error running game {name}: {e}")
     else:
@@ -452,7 +458,7 @@ def main():
                 return
         # run the selected game (skip menu)
         try:
-            _run_game_by_index(choice)
+            _run_game_by_index(choice, from_menu=False)
         except Exception as e:
             print(f"  [ERROR] Error running game: {e}")
         return
@@ -484,51 +490,21 @@ def main():
         _reset_game_by_index(choice, yes=yes)
         return
 
-    try:
-        verify_terminal_size('CLI Arcade', 70, 20)
-    except SystemExit:
-        return
-    # run the menu under ptk, then launch the chosen game's main()
-    choice = ptk.wrapper(_menu)
-    if choice is None:
-        return
-    name, relpath = GAMES[choice]
-    base = os.path.dirname(__file__)
-    path = os.path.join(base, relpath)
-    if not os.path.exists(path):
-        print(f"  [INFO] Game file not found: {path}")
-        return
-    # Ensure the game's directory is on sys.path so local imports (like `highscores`) resolve
-    game_dir = os.path.dirname(path)
-    spec = importlib.util.spec_from_file_location(f"cli_game_{choice}", path)
-    mod = importlib.util.module_from_spec(spec)
-    inserted = []
-    try:
-        proj_root = os.path.dirname(__file__)
-        if game_dir and game_dir not in sys.path:
-            sys.path.insert(0, game_dir)
-            inserted.append(game_dir)
-        if proj_root and proj_root not in sys.path:
-            sys.path.insert(0, proj_root)
-            inserted.append(proj_root)
-        spec.loader.exec_module(mod)
-    except Exception as e:
-        print(f"  [INFO] Failed to load game {name}: {e}")
-        return
-    finally:
-        for p in inserted:
-            try:
-                sys.path.remove(p)
-            except Exception:
-                pass
-    # call the game's main function if present
-    if hasattr(mod, 'main'):
+    # Interactive menu loop: verify terminal size before showing menu each time,
+    # run the selected game, then return to the menu when the game exits.
+    while True:
         try:
-            ptk.wrapper(mod.main)
+            verify_terminal_size('CLI Arcade', 70, 20)
+        except SystemExit:
+            return
+        choice = ptk.wrapper(_menu)
+        if choice is None:
+            break
+        # Run the selected game (this returns when the game exits, e.g. ESC)
+        try:
+            _run_game_by_index(choice, from_menu=True)
         except Exception as e:
-            print(f"  [ERROR] Error running game {name}: {e}")
-    else:
-        print(f"  [INFO] Game {name} has no main(stdscr) entry point.")
+            print(f"  [ERROR] Error running game: {e}")
 
 
 if __name__ == '__main__':
