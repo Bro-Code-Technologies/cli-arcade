@@ -2,11 +2,11 @@
 
 Collection of small terminal games bundled with a single CLI launcher.
 
-Requirements
+## Requirements
 - Python 3.8+
 - prompt_toolkit (installed via requirements)
 
-Quick start (developer)
+## Quick start (developer)
 
 ```powershell
 # install editable (recommended during development)
@@ -41,21 +41,20 @@ You can always run the CLI directly without installing:
 python -m cli
 ```
 
-Commands
+### Commands
 - `clia` — interactive terminal menu
 - `clia list` — print available games and zero-based indices
 - `clia run <index|name>` — run a game directly (index is zero-based)
 - `clia reset [<index|name>] [-y]` — delete highscores for a game or all games
 - Aliases available: `cli-arcade`
 
-Highscores storage and migration
+### Highscores storage and migration
 - Highscores are now stored in a user-writable application data directory. Typical locations:
 	- Windows (appdirs): `%LOCALAPPDATA%\cli-arcade\games\<game>\highscores.json`
 	- Fallback (no appdirs): `%USERPROFILE%\.cli-arcade\games\<game>\highscores.json`
 - On first run the CLI attempts to migrate any legacy `games/<game>/highscores.json` found in the project into the user data directory.
 
-Packaging & publishing (brief)
-
+### Packaging & publishing (brief)
 - `setup.cfg` now declares `packages = find:` and `include_package_data = true` so `game_classes/` and `games/` are included in sdist/wheels. Remember to add a `MANIFEST.in` if you need additional files in source distributions.
 - Update `setup.cfg` version.
 - Update `CHANGELOG.md` for new version.
@@ -63,12 +62,12 @@ Packaging & publishing (brief)
 - Upload: `twine upload dist/*` (requires `twine`).
 - The package exposes several console script aliases (see `setup.cfg` -> `options.entry_points.console_scripts`).
 
-Notes & Troubleshooting
+### Notes & Troubleshooting
 - No platform-specific terminal dependencies are required.
 - The CLI requires a minimum terminal size; if the menu exits with an error, try enlarging your terminal or run `python -m cli` in a larger window.
 - Games should live in their own subdirectory (`games/<slug>/game.py`) and export a `main(stdscr)` entry point. The CLI uses the directory name (slug) as the display title.
 
-Terminal recommendations (Windows)
+### Terminal recommendations (Windows)
 - Recommended: use Windows Terminal or the VS Code integrated terminal for the best UTF-8 + glyph support.
 	- Install Windows Terminal via Microsoft Store or `winget`:
 
@@ -92,12 +91,34 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 - Advanced: enable system-wide UTF-8 (Region → Administrative → Change system locale → check “Beta: Use Unicode UTF-8 for worldwide language support”) and restart. This affects other apps and requires caution.
 
-Contributing
+## Contributing
 - Add a new game by creating a subdirectory under `games/` with a `game.py` file that exports `main(stdscr)`.
 - Keep changes minimal and run `clia` locally to verify.
 
-License
+## License
 - MIT
 
-Changelog
-- See CHANGELOG.md
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## 2026.0.0
+- Initial release as CLI Game.
+
+## 2026.1.0
+- Project renamed to CLI Arcade.
+- Packaging metadata updated for PyPI.
+- Documentation refresh.
+
+### 2026.1.1
+- Updated TITLE ASCII art.
+- Added `clia update` command to check for and install updates from PyPI.
+
+### 2026.1.2
+- Version bump for testing the update mechanism.
+
+### 2026.1.3
+- Removed `clia update` command.
+
+### 2026.2.0
+- Refactoring using `prompt_toolkit` replacing `windows-curses` for better cross-platform compatibility.
