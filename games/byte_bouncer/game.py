@@ -78,7 +78,7 @@ class Game(GameBase):
               attr = ptk.color_pair(ptk.COLOR_MAGENTA) | ptk.A_BOLD
             else:
               attr = ptk.color_pair(ptk.COLOR_YELLOW) | ptk.A_BOLD
-            self.stdscr.addch(int(b['y']), 1 + int(b['x']), glyph('CIRCLE_FILLED', 'O'), attr)
+            self.stdscr.addch(int(b['y']), int(b['x']), glyph('CIRCLE_FILLED', 'O'), attr)
           except Exception:
             pass
       except Exception:
@@ -93,20 +93,21 @@ class Game(GameBase):
       # floor: across playable width
       for fx in range(0, self.width + 1):
         try:
-          self.stdscr.addch(self.height + 1, 1 + fx, block, ptk.color_pair(ptk.COLOR_GREEN))
+          self.stdscr.addch(self.height + 1, fx, block, ptk.color_pair(ptk.COLOR_GREEN))
         except Exception:
           pass
-      # right wall: draw from top down to the floor at terminal column (1 + self.width)
+      # right wall: draw from top down to the floor at the rightmost column
+      right_col = max(0, self.width)
       for wy in range(0, self.height + 1):
         try:
-          self.stdscr.addch(wy, 1 + self.width, block, ptk.color_pair(ptk.COLOR_GREEN))
+          self.stdscr.addch(wy, right_col, block, ptk.color_pair(ptk.COLOR_GREEN))
         except Exception:
           pass
 
       for i in range(self.paddle_w):
         x = clamp(self.paddle_x + i, 0, self.width - 1)
         try:
-          self.stdscr.addch(self.height, x + 1, '=', ptk.color_pair(ptk.COLOR_GREEN) | ptk.A_BOLD)
+          self.stdscr.addch(self.height, x, '=', ptk.color_pair(ptk.COLOR_GREEN) | ptk.A_BOLD)
         except Exception:
           pass
 
