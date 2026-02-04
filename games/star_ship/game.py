@@ -45,6 +45,8 @@ class Game(GameBase):
       self.special_expire = None
       self.next_special_at = time.time() + random.uniform(8, 18)
       self.dir = (0, 1)
+      # track the direction that was used for the last completed step
+      self._dir_at_last_step = self.dir
       self.stars = []
       cy = self.height // 2
       cx = self.width // 2
@@ -200,6 +202,13 @@ class Game(GameBase):
         return
       # move head
       self.ship.insert(0, (nh, nx))
+      # remember the direction actually used for this step so input
+      # handling can forbid immediate 180-degree reversals relative
+      # to the last moved direction.
+      try:
+        self._dir_at_last_step = (dy, dx)
+      except Exception:
+        pass
       # eating: normal yellow stars
       if (nh, nx) in self.stars:
         try:
@@ -245,9 +254,12 @@ class Game(GameBase):
       elif ch in (ptk.KEY_RIGHT, ord('d')):
         new_dir = (0, 1)
       if new_dir:
-        # prevent immediate 180-degree turns
-        cy, cx = self.dir
-        if (new_dir[0], new_dir[1]) != (-cy, -cx):
+        # prevent immediate 180-degree turns relative to the direction
+        # that was used for the last completed movement step. This stops
+        # very fast opposing key presses from reversing the ship between
+        # ticks and causing self-collisions.
+        last = getattr(self, '_dir_at_last_step', self.dir)
+        if (new_dir[0], new_dir[1]) != (-last[0], -last[1]):
           self.dir = new_dir
 
 def main(stdscr):
