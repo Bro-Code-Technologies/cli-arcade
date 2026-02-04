@@ -62,3 +62,4 @@ All notable changes to this project will be documented in this file.
 - Centralize terminal-size checks in CLI; games expose `MIN_COLS`/`MIN_ROWS`.
 - Byte Bouncer & Star Ship: floor + off-screen right wall; left-column bug fixed.
 - `ptk`: default-attribute/color emission fix; add helper to exit alt screen.
+- Fixed 180 movement glitch in Star Ship.
