@@ -57,7 +57,7 @@ python -m cli
 ### Packaging & publishing (brief)
 - `setup.cfg` now declares `packages = find:` and `include_package_data = true` so `game_classes/` and `games/` are included in sdist/wheels. Remember to add a `MANIFEST.in` if you need additional files in source distributions.
 - Update `setup.cfg` version.
-- Update `CHANGELOG.md` for new version.
+- Update `PYPI_README.md` Changelog for new version.
 - Build: `py -m build` (requires `build` package).
 - Upload: `twine upload dist/*` (requires `twine`).
 - The package exposes several console script aliases (see `setup.cfg` -> `options.entry_points.console_scripts`).
