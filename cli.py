@@ -5,6 +5,8 @@ import importlib.util
 import argparse
 import glob
 import sys
+import re
+import time
 
 # helper: recognize Enter from multiple terminals/keypads
 def is_enter_key(ch):
@@ -49,13 +51,38 @@ def _discover_games():
                     file_to_check = os.path.join(dirpath, pyfiles[0])
             if not file_to_check:
                 continue
+            # try to read declared minimum terminal size from the game file
+            min_cols = None
+            min_rows = None
+            try:
+                with open(file_to_check, 'r', encoding='utf-8') as fh:
+                    src = fh.read()
+                m = re.search(r'MIN_TERMINAL\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)', src)
+                if m:
+                    min_cols = int(m.group(1))
+                    min_rows = int(m.group(2))
+                else:
+                    m1 = re.search(r'MIN_COLS\s*=\s*(\d+)', src)
+                    m2 = re.search(r'MIN_ROWS\s*=\s*(\d+)', src)
+                    if m1:
+                        min_cols = int(m1.group(1))
+                    if m2:
+                        min_rows = int(m2.group(1))
+            except Exception:
+                min_cols = None
+                min_rows = None
             # use directory name as the display name
             name = entry.replace('_', ' ').title()
             rel = os.path.relpath(file_to_check, base).replace('\\', '/')
             games.append((name, rel))
+            try:
+                GAME_MINS[rel] = (min_cols, min_rows)
+            except Exception:
+                pass
     return games
 
 
+GAME_MINS = {}
 GAMES = _discover_games()
 
 
@@ -165,6 +192,25 @@ def _menu(stdscr):
         elif ch == ptk.KEY_NPAGE:  # Page Down
             sel = min(len(GAMES) - 1, sel + avail)
         elif is_enter_key(ch):
+            # Before leaving the menu, validate the selected game's minimum
+            # terminal size (if declared). If it's too small, show an
+            # on-screen message and keep the menu running.
+            try:
+                rel = GAMES[sel][1]
+                mins = GAME_MINS.get(rel)
+                if mins:
+                    min_cols, min_rows = mins
+                    if min_cols and min_rows and (w < int(min_cols) or h < int(min_rows)):
+                        try:
+                            msg = f"Terminal too small: {w}x{h}, need {min_cols}x{min_rows}. Resize to start."
+                            stdscr.addstr(max(0, h-1), 2, msg[:max(0, w-4)], ptk.color_pair(ptk.COLOR_RED))
+                            stdscr.refresh()
+                            time.sleep(1.5)
+                        except Exception:
+                            pass
+                        continue
+            except Exception:
+                pass
             return sel
         elif ch == 27:
             return None
