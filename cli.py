@@ -1,14 +1,17 @@
-import curses
+from game_classes import ptk
+from game_classes.tools import verify_terminal_size
 import os
 import importlib.util
 import argparse
 import glob
 import sys
+import re
+import time
 
 # helper: recognize Enter from multiple terminals/keypads
 def is_enter_key(ch):
     try:
-        enter_vals = {10, 13, getattr(curses, 'KEY_ENTER', -1), 343, 459}
+        enter_vals = {10, 13, getattr(ptk, 'KEY_ENTER', -1), 343, 459}
     except Exception:
         enter_vals = {10, 13}
     return ch in enter_vals
@@ -48,13 +51,38 @@ def _discover_games():
                     file_to_check = os.path.join(dirpath, pyfiles[0])
             if not file_to_check:
                 continue
+            # try to read declared minimum terminal size from the game file
+            min_cols = None
+            min_rows = None
+            try:
+                with open(file_to_check, 'r', encoding='utf-8') as fh:
+                    src = fh.read()
+                m = re.search(r'MIN_TERMINAL\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)', src)
+                if m:
+                    min_cols = int(m.group(1))
+                    min_rows = int(m.group(2))
+                else:
+                    m1 = re.search(r'MIN_COLS\s*=\s*(\d+)', src)
+                    m2 = re.search(r'MIN_ROWS\s*=\s*(\d+)', src)
+                    if m1:
+                        min_cols = int(m1.group(1))
+                    if m2:
+                        min_rows = int(m2.group(1))
+            except Exception:
+                min_cols = None
+                min_rows = None
             # use directory name as the display name
             name = entry.replace('_', ' ').title()
             rel = os.path.relpath(file_to_check, base).replace('\\', '/')
             games.append((name, rel))
+            try:
+                GAME_MINS[rel] = (min_cols, min_rows)
+            except Exception:
+                pass
     return games
 
 
+GAME_MINS = {}
 GAMES = _discover_games()
 
 
@@ -74,29 +102,29 @@ def _read_console_aliases():
 
 
 def _menu(stdscr):
-    curses.curs_set(0)
+    ptk.curs_set(0)
     stdscr.nodelay(False)
     # ensure a cyan color pair is available for the title
-    if curses.has_colors():
+    if ptk.has_colors():
         try:
           # init colors
-          curses.start_color()
-          curses.use_default_colors()
+          ptk.start_color()
+          ptk.use_default_colors()
           # try to normalize key colors (0..1000 scale). Must run before init_pair.
-          if curses.can_change_color() and curses.COLORS >= 8:
+          if ptk.can_change_color() and ptk.COLORS >= 8:
               try:
-                  curses.init_color(curses.COLOR_MAGENTA, 1000, 0, 1000)
-                  curses.init_color(curses.COLOR_YELLOW, 1000, 1000, 0)
-                  curses.init_color(curses.COLOR_WHITE, 1000, 1000, 1000)
-                  curses.init_color(curses.COLOR_CYAN, 0, 1000, 1000)
-                  curses.init_color(curses.COLOR_BLUE, 0, 0, 1000)
-                  curses.init_color(curses.COLOR_GREEN, 0, 800, 0)
-                  curses.init_color(curses.COLOR_RED, 1000, 0, 0)
-                  curses.init_color(curses.COLOR_BLACK, 0, 0, 0)
+                  ptk.init_color(ptk.COLOR_MAGENTA, 1000, 0, 1000)
+                  ptk.init_color(ptk.COLOR_YELLOW, 1000, 1000, 0)
+                  ptk.init_color(ptk.COLOR_WHITE, 1000, 1000, 1000)
+                  ptk.init_color(ptk.COLOR_CYAN, 0, 1000, 1000)
+                  ptk.init_color(ptk.COLOR_BLUE, 0, 0, 1000)
+                  ptk.init_color(ptk.COLOR_GREEN, 0, 800, 0)
+                  ptk.init_color(ptk.COLOR_RED, 1000, 0, 0)
+                  ptk.init_color(ptk.COLOR_BLACK, 0, 0, 0)
               except Exception:
                   pass
           for i in range(1,8):
-              curses.init_pair(i, i, -1)
+              ptk.init_pair(i, i, -1)
         except Exception:
             pass
     sel = 0
@@ -106,13 +134,13 @@ def _menu(stdscr):
         h, w = stdscr.getmaxyx()
         title_h = len(TITLE)
         title_start = 0
-        colors = [curses.COLOR_MAGENTA, curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_GREEN]
+        colors = [ptk.COLOR_MAGENTA, ptk.COLOR_MAGENTA, ptk.COLOR_CYAN, ptk.COLOR_CYAN, ptk.COLOR_GREEN, ptk.COLOR_GREEN]
         for i, line in enumerate(TITLE):
             try:
-                stdscr.addstr(title_start + i, 0, line, curses.color_pair(colors[i]))
+                stdscr.addstr(title_start + i, 0, line, ptk.color_pair(colors[i]))
             except Exception:
                 pass
-        stdscr.addstr(title_h + 1, 2, "Use Up/Down, PageUp/PageDown, Enter to start, ESC to quit", curses.color_pair(curses.COLOR_WHITE))
+        stdscr.addstr(title_h + 1, 2, "Use Up/Down, PageUp/PageDown, Enter to start, ESC to quit", ptk.color_pair(ptk.COLOR_WHITE))
         start_y = title_h + 3
         # number of lines available for the game list
         avail = max(1, h - start_y - 2)
@@ -126,9 +154,9 @@ def _menu(stdscr):
         for vis_i in range(min(avail, total)):
             i = top + vis_i
             name = GAMES[i][0]
-            attr = curses.A_REVERSE if i == sel else curses.A_NORMAL
+            attr = ptk.A_REVERSE if i == sel else ptk.A_NORMAL
             try:
-                stdscr.addstr(start_y + vis_i, 2, name[:w-4], curses.color_pair(curses.COLOR_CYAN) | attr)
+                stdscr.addstr(start_y + vis_i, 2, name[:w-4], ptk.color_pair(ptk.COLOR_CYAN) | attr)
             except Exception:
                 pass
         # optional scrollbar indicator when list is long
@@ -155,15 +183,34 @@ def _menu(stdscr):
         stdscr.refresh()
 
         ch = stdscr.getch()
-        if ch == curses.KEY_UP:
+        if ch == ptk.KEY_UP:
             sel = max(0, sel - 1)
-        elif ch == curses.KEY_DOWN:
+        elif ch == ptk.KEY_DOWN:
             sel = min(len(GAMES) - 1, sel + 1)
-        elif ch == curses.KEY_PPAGE:  # Page Up
+        elif ch == ptk.KEY_PPAGE:  # Page Up
             sel = max(0, sel - avail)
-        elif ch == curses.KEY_NPAGE:  # Page Down
+        elif ch == ptk.KEY_NPAGE:  # Page Down
             sel = min(len(GAMES) - 1, sel + avail)
         elif is_enter_key(ch):
+            # Before leaving the menu, validate the selected game's minimum
+            # terminal size (if declared). If it's too small, show an
+            # on-screen message and keep the menu running.
+            try:
+                rel = GAMES[sel][1]
+                mins = GAME_MINS.get(rel)
+                if mins:
+                    min_cols, min_rows = mins
+                    if min_cols and min_rows and (w < int(min_cols) or h < int(min_rows)):
+                        try:
+                            msg = f"Terminal too small: {w}x{h}, need {min_cols}x{min_rows}. Resize to start."
+                            stdscr.addstr(max(0, h-1), 2, msg[:max(0, w-4)], ptk.color_pair(ptk.COLOR_RED))
+                            stdscr.refresh()
+                            time.sleep(1.5)
+                        except Exception:
+                            pass
+                        continue
+            except Exception:
+                pass
             return sel
         elif ch == 27:
             return None
@@ -174,7 +221,7 @@ def _menu(stdscr):
             top = sel - avail + 1
 
 
-def _run_game_by_index(choice):
+def _run_game_by_index(choice, from_menu=False):
     """Load and run the game given by numeric index in GAMES."""
     name, relpath = GAMES[choice]
     base = os.path.dirname(__file__)
@@ -207,7 +254,29 @@ def _run_game_by_index(choice):
                 pass
     if hasattr(mod, 'main'):
         try:
-            curses.wrapper(mod.main)
+            # If the module exposes minimum terminal requirements, verify
+            # them before entering the alternate screen so messages are visible
+            try:
+                min_cols = getattr(mod, 'MIN_COLS', None)
+                min_rows = getattr(mod, 'MIN_ROWS', None)
+                if min_cols is None and hasattr(mod, 'MIN_TERMINAL'):
+                    t = getattr(mod, 'MIN_TERMINAL')
+                    if isinstance(t, (tuple, list)) and len(t) >= 2:
+                        min_cols, min_rows = t[0], t[1]
+                if min_cols is not None and min_rows is not None:
+                    verify_terminal_size(name, int(min_cols), int(min_rows))
+            except SystemExit:
+                return
+            except Exception:
+                pass
+
+            ptk.wrapper(mod.main)
+            # If launched via `clia run`, exit the process after the game ends.
+            if not from_menu:
+                try:
+                    sys.exit(0)
+                except SystemExit:
+                    raise
         except Exception as e:
             print(f"  [ERROR] Error running game {name}: {e}")
     else:
@@ -389,7 +458,7 @@ def main():
                 return
         # run the selected game (skip menu)
         try:
-            _run_game_by_index(choice)
+            _run_game_by_index(choice, from_menu=False)
         except Exception as e:
             print(f"  [ERROR] Error running game: {e}")
         return
@@ -421,47 +490,21 @@ def main():
         _reset_game_by_index(choice, yes=yes)
         return
 
-    # run the menu under curses, then launch the chosen game's main()
-    choice = curses.wrapper(_menu)
-    if choice is None:
-        return
-    name, relpath = GAMES[choice]
-    base = os.path.dirname(__file__)
-    path = os.path.join(base, relpath)
-    if not os.path.exists(path):
-        print(f"  [INFO] Game file not found: {path}")
-        return
-    # Ensure the game's directory is on sys.path so local imports (like `highscores`) resolve
-    game_dir = os.path.dirname(path)
-    spec = importlib.util.spec_from_file_location(f"cli_game_{choice}", path)
-    mod = importlib.util.module_from_spec(spec)
-    inserted = []
-    try:
-        proj_root = os.path.dirname(__file__)
-        if game_dir and game_dir not in sys.path:
-            sys.path.insert(0, game_dir)
-            inserted.append(game_dir)
-        if proj_root and proj_root not in sys.path:
-            sys.path.insert(0, proj_root)
-            inserted.append(proj_root)
-        spec.loader.exec_module(mod)
-    except Exception as e:
-        print(f"  [INFO] Failed to load game {name}: {e}")
-        return
-    finally:
-        for p in inserted:
-            try:
-                sys.path.remove(p)
-            except Exception:
-                pass
-    # call the game's main function if present
-    if hasattr(mod, 'main'):
+    # Interactive menu loop: verify terminal size before showing menu each time,
+    # run the selected game, then return to the menu when the game exits.
+    while True:
         try:
-            curses.wrapper(mod.main)
+            verify_terminal_size('CLI Arcade', 70, 20)
+        except SystemExit:
+            return
+        choice = ptk.wrapper(_menu)
+        if choice is None:
+            break
+        # Run the selected game (this returns when the game exits, e.g. ESC)
+        try:
+            _run_game_by_index(choice, from_menu=True)
         except Exception as e:
-            print(f"  [ERROR] Error running game {name}: {e}")
-    else:
-        print(f"  [INFO] Game {name} has no main(stdscr) entry point.")
+            print(f"  [ERROR] Error running game: {e}")
 
 
 if __name__ == '__main__':
