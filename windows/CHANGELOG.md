@@ -20,3 +20,6 @@ All notable changes to this project will be documented in this file.
 ### 2026.1.3
 - Removed `clia update` command.
 
+### 2026.2.0
+- Refactoring using `prompt_toolkit` replacing `windows-curses` for better cross-platform compatibility.
+

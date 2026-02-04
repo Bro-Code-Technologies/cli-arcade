@@ -1,4 +1,4 @@
-import curses
+from game_classes import ptk
 import os
 import time
 import random
@@ -15,7 +15,7 @@ except Exception:
 from game_classes.highscores import HighScores
 from game_classes.game_base import GameBase
 from game_classes.menu import Menu
-from game_classes.tools import verify_terminal_size, init_curses, is_enter_key, glyph
+from game_classes.tools import verify_terminal_size, init_ptk, is_enter_key, glyph
 
 TITLE = [
    "    ______             ______   _     ",
@@ -33,7 +33,7 @@ class Game(GameBase):
           'stars': {'player': 'Player', 'value': 1},
           'length': {'player': 'Player', 'value': 3},
       })
-      super().__init__(stdscr, player_name, 0.12, curses.COLOR_GREEN)
+      super().__init__(stdscr, player_name, 0.12, ptk.COLOR_GREEN)
       self.init_scores([['score', 0], ['stars', 0], ['length', 0]])
 
       # game state
@@ -95,17 +95,17 @@ class Game(GameBase):
 
         # draw high scores below title
         new_score = ' ***NEW High Score!' if self.new_highs.get('score', False) else ''
-        self.stdscr.addstr(info_y + 0, info_x, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]}){new_score}', curses.color_pair(curses.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 0, info_x, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]}){new_score}', ptk.color_pair(ptk.COLOR_GREEN))
         new_ship_length = ' ***NEW Longest Ship!' if self.new_highs.get('length', False) else ''
-        self.stdscr.addstr(info_y + 1, info_x, f'Longest Ship: {int(self.high_scores["length"]["value"]):,} ({self.high_scores["length"]["player"]}){new_ship_length}', curses.color_pair(curses.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 1, info_x, f'Longest Ship: {int(self.high_scores["length"]["value"]):,} ({self.high_scores["length"]["player"]}){new_ship_length}', ptk.color_pair(ptk.COLOR_BLUE))
         new_stars = ' ***NEW Most Stars!' if self.new_highs.get('stars', False) else ''
-        self.stdscr.addstr(info_y + 2, info_x, f'Most Stars: {int(self.high_scores["stars"]["value"]):,} ({self.high_scores["stars"]["player"]}){new_stars}', curses.color_pair(curses.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 2, info_x, f'Most Stars: {int(self.high_scores["stars"]["value"]):,} ({self.high_scores["stars"]["player"]}){new_stars}', ptk.color_pair(ptk.COLOR_BLUE))
 
         # draw game info below title
         self.stdscr.addstr(info_y + 4, info_x, f'Player: {self.player_name}')
-        self.stdscr.addstr(info_y + 5, info_x, f'Score: {int(self.scores["score"]):,}', curses.color_pair(curses.COLOR_GREEN))
-        self.stdscr.addstr(info_y + 6, info_x, f'Ship Length: {int(self.scores["length"]):,}', curses.color_pair(curses.COLOR_BLUE))
-        self.stdscr.addstr(info_y + 7, info_x, f'Stars: {int(self.scores["stars"]):,}', curses.color_pair(curses.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 5, info_x, f'Score: {int(self.scores["score"]):,}', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 6, info_x, f'Ship Length: {int(self.scores["length"]):,}', ptk.color_pair(ptk.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 7, info_x, f'Stars: {int(self.scores["stars"]):,}', ptk.color_pair(ptk.COLOR_BLUE))
 
         self.stdscr.addstr(info_y + 9 , info_x, '↑ | w     : Up')
         self.stdscr.addstr(info_y + 10, info_x, '← | a     : Left')
@@ -122,18 +122,18 @@ class Game(GameBase):
       try:
         # draw yellow stars
         for fy, fx in list(getattr(self, 'stars', [])):
-          self.stdscr.addch(fy, fx, '*', curses.color_pair(curses.COLOR_YELLOW) | curses.A_BOLD)
+          self.stdscr.addch(fy, fx, '*', ptk.color_pair(ptk.COLOR_YELLOW) | ptk.A_BOLD)
         # draw special magenta (if present)
         if getattr(self, 'special', None) is not None:
           sy, sx = self.special
-          self.stdscr.addch(sy, sx, glyph('CIRCLE_FILLED'), curses.color_pair(curses.COLOR_MAGENTA) | curses.A_BOLD)
+          self.stdscr.addch(sy, sx, glyph('CIRCLE_FILLED'), ptk.color_pair(ptk.COLOR_MAGENTA) | ptk.A_BOLD)
         # ship: head and body
         for idx, (sy, sx) in enumerate(self.ship):
           try:
             if idx == 0:
-              self.stdscr.addch(sy, sx, glyph('CIRCLE_FILLED'), curses.color_pair(curses.COLOR_GREEN) | curses.A_BOLD)
+              self.stdscr.addch(sy, sx, glyph('CIRCLE_FILLED'), ptk.color_pair(ptk.COLOR_GREEN) | ptk.A_BOLD)
             else:
-              self.stdscr.addch(sy, sx, glyph('CIRCLE_FILLED'), curses.color_pair(curses.COLOR_BLUE))
+              self.stdscr.addch(sy, sx, glyph('CIRCLE_FILLED'), ptk.color_pair(ptk.COLOR_BLUE))
           except Exception:
             pass
       except Exception:
@@ -207,13 +207,13 @@ class Game(GameBase):
 
     def movement(self, ch):
       new_dir = None
-      if ch in (curses.KEY_UP, ord('w')):
+      if ch in (ptk.KEY_UP, ord('w')):
         new_dir = (-1, 0)
-      elif ch in (curses.KEY_DOWN, ord('s')):
+      elif ch in (ptk.KEY_DOWN, ord('s')):
         new_dir = (1, 0)
-      elif ch in (curses.KEY_LEFT, ord('a')):
+      elif ch in (ptk.KEY_LEFT, ord('a')):
         new_dir = (0, -1)
-      elif ch in (curses.KEY_RIGHT, ord('d')):
+      elif ch in (ptk.KEY_RIGHT, ord('d')):
         new_dir = (0, 1)
       if new_dir:
         # prevent immediate 180-degree turns
@@ -223,7 +223,7 @@ class Game(GameBase):
 
 def main(stdscr):
   verify_terminal_size('Star Ship')
-  init_curses(stdscr)
+  init_ptk(stdscr)
   while True:
     game = Game(stdscr)
     menu = Menu(game)
@@ -235,9 +235,9 @@ def main(stdscr):
 
 if __name__ == '__main__':
     try:
-        curses.wrapper(main)
+        ptk.wrapper(main)
     except KeyboardInterrupt:
         try:
-            curses.endwin()
+            ptk.endwin()
         except Exception:
             pass

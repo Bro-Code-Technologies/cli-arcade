@@ -1,2 +1,2 @@
 appdirs
-windows-curses; sys_platform == "win32"
+prompt_toolkit

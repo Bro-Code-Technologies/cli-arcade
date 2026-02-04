@@ -1,4 +1,4 @@
-import curses
+from game_classes import ptk
 import random
 import os
 import math
@@ -16,7 +16,7 @@ except Exception:
 from game_classes.highscores import HighScores
 from game_classes.game_base import GameBase
 from game_classes.menu import Menu
-from game_classes.tools import verify_terminal_size, init_curses, is_enter_key
+from game_classes.tools import verify_terminal_size, init_ptk, is_enter_key
 
 TITLE = [
      '___________                  .__              .__    ___________           ___.   .__          ',
@@ -38,13 +38,13 @@ SHAPES = {
 }
 
 COLORS = {
-  'I': curses.COLOR_WHITE,
-  'O': curses.COLOR_BLUE,
-  'T': curses.COLOR_CYAN,
-  'S': curses.COLOR_GREEN,
-  'Z': curses.COLOR_RED,
-  'J': curses.COLOR_MAGENTA,
-  'L': curses.COLOR_YELLOW,
+  'I': ptk.COLOR_WHITE,
+  'O': ptk.COLOR_BLUE,
+  'T': ptk.COLOR_CYAN,
+  'S': ptk.COLOR_GREEN,
+  'Z': ptk.COLOR_RED,
+  'J': ptk.COLOR_MAGENTA,
+  'L': ptk.COLOR_YELLOW,
 }
 
 class Piece:
@@ -90,7 +90,7 @@ class Game(GameBase):
             'lines': {'player': 'Player', 'value': 0},
             'level': {'player': 'Player', 'value': 1},
         })
-        super().__init__(stdscr, player_name, 0.5, curses.COLOR_RED)
+        super().__init__(stdscr, player_name, 0.5, ptk.COLOR_RED)
         self.msg_height = self.height - 22
         self.init_scores([['score', 0], ['lines', 0], ['level', 1]])
 
@@ -104,7 +104,7 @@ class Game(GameBase):
         self.drop_timer = 0
         self.msg_log = deque(maxlen=self.msg_height)
 
-    def push_message(self, text, color_const=curses.COLOR_WHITE):
+    def push_message(self, text, color_const=ptk.COLOR_WHITE):
         try:
             self.msg_log.append((text, color_const))
         except Exception:
@@ -113,7 +113,7 @@ class Game(GameBase):
     def handle_new_highs(self, metric):
       if not self.new_highs[metric]:
         cap_metric = metric.capitalize()
-        self.push_message(f'New High {cap_metric}!', curses.COLOR_YELLOW)
+        self.push_message(f'New High {cap_metric}!', ptk.COLOR_YELLOW)
       super().handle_new_highs(metric)
 
     def next_piece(self):
@@ -156,18 +156,18 @@ class Game(GameBase):
             points = int(base_points * multiplier)
             # push a rolling message for this clear
             label = ''
-            color = curses.COLOR_WHITE
+            color = ptk.COLOR_WHITE
             if cleared == 2:
                 label = 'Double!'
-                color = curses.COLOR_CYAN
+                color = ptk.COLOR_CYAN
                 points = int(points * 1.5)
             elif cleared == 3:
                 label = 'Triple!'
-                color = curses.COLOR_BLUE
+                color = ptk.COLOR_BLUE
                 points = int(points * 2.0)
             elif cleared == 4:
                 label = 'Full Stack!'
-                color = curses.COLOR_GREEN
+                color = ptk.COLOR_GREEN
                 points = int(points * 3.0)
             self.scores['score'] += points
             self.push_message(f'+{points} {label}', color)
@@ -194,7 +194,7 @@ class Game(GameBase):
             self.scores['score'] += bonus
             # push slam bonus message if any
             if bonus > 0:
-                self.push_message(f'+{bonus} Slam Bonus!', curses.COLOR_MAGENTA)
+                self.push_message(f'+{bonus} Slam Bonus!', ptk.COLOR_MAGENTA)
                 try:
                     self.update_high_scores()
                 except Exception:
@@ -223,7 +223,7 @@ class Game(GameBase):
                     if py >= 0 and px >= 0:
                         color = COLORS.get(self.next.shape, 1)
                         try:
-                            self.stdscr.addstr(py, px, '[]', curses.color_pair(color))
+                            self.stdscr.addstr(py, px, '[]', ptk.color_pair(color))
                         except Exception:
                             try:
                                 self.stdscr.addstr(py, px, '[]')
@@ -233,19 +233,19 @@ class Game(GameBase):
                 pass
         except Exception:
             pass
-        self.stdscr.addstr(info_y + 0 , 55, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]})', curses.color_pair(curses.COLOR_GREEN))
-        self.stdscr.addstr(info_y + 1 , 55, f'High Lines: {int(self.high_scores["lines"]["value"]):,} ({self.high_scores["lines"]["player"]})', curses.color_pair(curses.COLOR_BLUE))
-        self.stdscr.addstr(info_y + 2 , 55, f'High Level: {int(self.high_scores["level"]["value"]):,} ({self.high_scores["level"]["player"]})', curses.color_pair(curses.COLOR_MAGENTA))
+        self.stdscr.addstr(info_y + 0 , 55, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]})', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 1 , 55, f'High Lines: {int(self.high_scores["lines"]["value"]):,} ({self.high_scores["lines"]["player"]})', ptk.color_pair(ptk.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 2 , 55, f'High Level: {int(self.high_scores["level"]["value"]):,} ({self.high_scores["level"]["player"]})', ptk.color_pair(ptk.COLOR_MAGENTA))
         # player name
         info_y += 4
         try:
-            self.stdscr.addstr(info_y, 43, f'Player: {self.player_name}', curses.A_BOLD)
+            self.stdscr.addstr(info_y, 43, f'Player: {self.player_name}', ptk.A_BOLD)
         except Exception:
             pass
         self.stdscr.addstr(info_y + 1, 43, '====================================================')
-        self.stdscr.addstr(info_y + 2, 43, f'Score: {int(self.scores["score"]):,}', curses.color_pair(curses.COLOR_GREEN))
-        self.stdscr.addstr(info_y + 3, 43, f'Lines: {int(self.scores["lines"]):,}', curses.color_pair(curses.COLOR_BLUE))
-        self.stdscr.addstr(info_y + 4, 43, f'Level: {int(self.scores["level"]):,}', curses.color_pair(curses.COLOR_MAGENTA))
+        self.stdscr.addstr(info_y + 2, 43, f'Score: {int(self.scores["score"]):,}', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 3, 43, f'Lines: {int(self.scores["lines"]):,}', ptk.color_pair(ptk.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 4, 43, f'Level: {int(self.scores["level"]):,}', ptk.color_pair(ptk.COLOR_MAGENTA))
 
         self.stdscr.addstr(info_y + 5, 43, '====================================================')
         # draw rolling message log (most recent at top)
@@ -266,7 +266,7 @@ class Game(GameBase):
                     break
                 y = start_y + idx
                 try:
-                    self.stdscr.addstr(y, preview_x, text, curses.color_pair(color_const))
+                    self.stdscr.addstr(y, preview_x, text, ptk.color_pair(color_const))
                 except Exception:
                     try:
                         self.stdscr.addstr(y, preview_x, text)
@@ -310,9 +310,9 @@ class Game(GameBase):
                     self.stdscr.addstr(y_off, x*2, ' |')
                 elif ch != ' ':
                     color = COLORS.get(ch, 1)
-                    attr = curses.color_pair(color)
+                    attr = ptk.color_pair(color)
                     if ch == 'J':
-                        attr |= curses.A_DIM
+                        attr |= ptk.A_DIM
                     self.stdscr.addstr(y_off, x*2, '[]', attr)
                 else:
                     self.stdscr.addstr(y_off, x*2, '  ')
@@ -323,9 +323,9 @@ class Game(GameBase):
             y_off = y + len(self.title)
             if 0 <= y < self.height - 6 and 0 <= x < len(self.board[0]):
                 color = COLORS.get(self.current.shape, 1)
-                attr = curses.color_pair(color)
+                attr = ptk.color_pair(color)
                 if self.current.shape == 'J':
-                    attr |= curses.A_DIM
+                    attr |= ptk.A_DIM
                 self.stdscr.addstr(y_off, x*2, '[]', attr)
 
         # draw borders and (shifted by top margin)
@@ -347,20 +347,20 @@ class Game(GameBase):
           self.lock_piece()
 
     def movement(self, ch):
-      if ch in (curses.KEY_LEFT, ord('a')):
+      if ch in (ptk.KEY_LEFT, ord('a')):
         self.current.move(-1,0,self.board)
-      elif ch in (curses.KEY_RIGHT, ord('d')):
+      elif ch in (ptk.KEY_RIGHT, ord('d')):
         self.current.move(1,0,self.board)
-      elif ch in (curses.KEY_DOWN, ord('s')):
+      elif ch in (ptk.KEY_DOWN, ord('s')):
         self.current.move(0,1,self.board)
-      elif ch in (curses.KEY_UP, ord('w')):
+      elif ch in (ptk.KEY_UP, ord('w')):
         self.current.rotate(self.board)
       elif is_enter_key(ch) or ch == ord(' '):
         self.hard_drop()
 
 def main(stdscr):
   verify_terminal_size('Terminal Tumble', 100, 30)
-  init_curses(stdscr)
+  init_ptk(stdscr)
   while True:
     game = Game(stdscr)
     menu = Menu(game)
@@ -372,9 +372,9 @@ def main(stdscr):
 
 if __name__ == '__main__':
     try:
-        curses.wrapper(main)
+        ptk.wrapper(main)
     except KeyboardInterrupt:
         try:
-            curses.endwin()
+            ptk.endwin()
         except Exception:
             pass

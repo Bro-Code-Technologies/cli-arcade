@@ -1,9 +1,9 @@
-import curses
+from game_classes import ptk
 import time
 from game_classes.tools import get_terminal_size
 
 class GameBase:
-  def __init__(self, stdscr, player_name, tick, color=curses.COLOR_GREEN):
+  def __init__(self, stdscr, player_name, tick, color=ptk.COLOR_GREEN):
     self.stdscr = stdscr
     self.player_name = player_name
     self.tick = tick
@@ -65,7 +65,7 @@ class GameBase:
         return True
       if not getattr(self, 'over', False):
         # toggle pause on Backspace
-        if ch in (curses.KEY_BACKSPACE, 127, 8):
+        if ch in (ptk.KEY_BACKSPACE, 127, 8):
           self.paused = not getattr(self, 'paused', False)
         # movement only when not paused
         elif not getattr(self, 'paused', False):
@@ -76,7 +76,7 @@ class GameBase:
     try:
       py = max(0, min(self.height, self.height // 2))
       px = max(0, (self.width - len(msg)) // 2)
-      self.stdscr.addstr(py, px, msg, curses.color_pair(curses.COLOR_RED) | curses.A_BOLD)
+      self.stdscr.addstr(py, px, msg, ptk.color_pair(ptk.COLOR_RED) | ptk.A_BOLD)
     except Exception:
       pass
 
@@ -85,7 +85,7 @@ class GameBase:
     try:
       for i, line in enumerate(self.title):
         try:
-          self.stdscr.addstr(i, 0, line, curses.color_pair(self.color) | curses.A_BOLD)
+          self.stdscr.addstr(i, 0, line, ptk.color_pair(self.color) | ptk.A_BOLD)
         except Exception:
           pass
     except Exception:

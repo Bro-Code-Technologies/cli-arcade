@@ -1,4 +1,4 @@
-import curses
+from game_classes import ptk
 import os
 import random
 import sys
@@ -14,7 +14,7 @@ except Exception:
 from game_classes.highscores import HighScores
 from game_classes.game_base import GameBase
 from game_classes.menu import Menu
-from game_classes.tools import glyph, verify_terminal_size, init_curses, clamp
+from game_classes.tools import glyph, verify_terminal_size, init_ptk, clamp
 
 TITLE = [
      '  ____  _  _  ____  ____    ____   __   _  _  __ _   ___  ____  ____  ',
@@ -30,7 +30,7 @@ class Game(GameBase):
           'score': {'player': 'Player', 'value': 0},
           'level': {'player': 'Player', 'value': 1},
       })
-      super().__init__(stdscr, player_name, 0.12, curses.COLOR_GREEN)
+      super().__init__(stdscr, player_name, 0.12, ptk.COLOR_GREEN)
       self.init_scores([['score', 0], ['level', 1]])
 
       # game state
@@ -49,13 +49,13 @@ class Game(GameBase):
         # draw high scores below title
         new_score = ' ***NEW High Score!' if self.new_highs.get('score', False) else ''
         new_level = ' ***NEW High Level!' if self.new_highs.get('level', False) else ''
-        self.stdscr.addstr(info_y + 1 , info_x, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]}){new_score}', curses.color_pair(curses.COLOR_GREEN))
-        self.stdscr.addstr(info_y + 2 , info_x, f'High Level: {int(self.high_scores["level"]["value"]):,} ({self.high_scores["level"]["player"]}){new_level}', curses.color_pair(curses.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 1 , info_x, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]}){new_score}', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 2 , info_x, f'High Level: {int(self.high_scores["level"]["value"]):,} ({self.high_scores["level"]["player"]}){new_level}', ptk.color_pair(ptk.COLOR_BLUE))
 
         # draw game info below title
         self.stdscr.addstr(info_y + 4, info_x, f'Player: {self.player_name}')
-        self.stdscr.addstr(info_y + 5, info_x, f'Score: {int(self.scores["score"]):,}', curses.color_pair(curses.COLOR_GREEN))
-        self.stdscr.addstr(info_y + 6, info_x, f'Level: {int(self.scores["level"]):,}', curses.color_pair(curses.COLOR_BLUE))
+        self.stdscr.addstr(info_y + 5, info_x, f'Score: {int(self.scores["score"]):,}', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 6, info_x, f'Level: {int(self.scores["level"]):,}', ptk.color_pair(ptk.COLOR_BLUE))
 
         self.stdscr.addstr(info_y + 8 , info_x, '← | a     : Left')
         self.stdscr.addstr(info_y + 9 , info_x, '→ | d     : Right')
@@ -71,9 +71,9 @@ class Game(GameBase):
         for idx, b in enumerate(self.balls):
           try:
             if idx == 0:
-              attr = curses.color_pair(curses.COLOR_MAGENTA) | curses.A_BOLD
+              attr = ptk.color_pair(ptk.COLOR_MAGENTA) | ptk.A_BOLD
             else:
-              attr = curses.color_pair(curses.COLOR_YELLOW) | curses.A_BOLD
+              attr = ptk.color_pair(ptk.COLOR_YELLOW) | ptk.A_BOLD
             self.stdscr.addch(int(b['y']), 1 + int(b['x']), glyph('CIRCLE_FILLED', 'O'), attr)
           except Exception:
             pass
@@ -83,7 +83,7 @@ class Game(GameBase):
       for i in range(self.paddle_w):
         x = clamp(self.paddle_x + i, 0, self.width - 1)
         try:
-          self.stdscr.addch(self.height, x + 1, '=', curses.color_pair(curses.COLOR_GREEN) | curses.A_BOLD)
+          self.stdscr.addch(self.height, x + 1, '=', ptk.color_pair(ptk.COLOR_GREEN) | ptk.A_BOLD)
         except Exception:
           pass
 
@@ -181,14 +181,14 @@ class Game(GameBase):
                 pass
 
     def movement(self, ch):
-      if ch in (curses.KEY_LEFT, ord('a')):
+      if ch in (ptk.KEY_LEFT, ord('a')):
         self.paddle_x = int(clamp(self.paddle_x - 2, 0, self.width - self.paddle_w))
-      elif ch in (curses.KEY_RIGHT, ord('d')):
+      elif ch in (ptk.KEY_RIGHT, ord('d')):
         self.paddle_x = int(clamp(self.paddle_x + 2, 0, self.width - self.paddle_w))
 
 def main(stdscr):
   verify_terminal_size('Byte Bouncer')
-  init_curses(stdscr)
+  init_ptk(stdscr)
   while True:
     game = Game(stdscr)
     menu = Menu(game)
@@ -200,9 +200,9 @@ def main(stdscr):
 
 if __name__ == '__main__':
     try:
-        curses.wrapper(main)
+        ptk.wrapper(main)
     except KeyboardInterrupt:
         try:
-            curses.endwin()
+            ptk.endwin()
         except Exception:
             pass

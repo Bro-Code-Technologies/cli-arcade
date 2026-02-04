@@ -24,7 +24,7 @@ clia reset -y  # skip confirmation
 ```
 
 Commands
-- `clia` — interactive curses menu
+- `clia` — interactive terminal menu
 - `clia list` — print available games and zero-based indices
 - `clia run <index|name>` — run a game directly (index is zero-based)
 - `clia reset [<index|name>] [-y]` — delete highscores for a game or all games

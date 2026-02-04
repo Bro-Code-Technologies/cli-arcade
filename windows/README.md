@@ -4,11 +4,7 @@ Collection of small terminal games bundled with a single CLI launcher.
 
 Requirements
 - Python 3.8+
-- On Windows: install `windows-curses` for curses support:
-
-```powershell
-pip install windows-curses
-```
+- prompt_toolkit (installed via requirements)
 
 Quick start (developer)
 
@@ -46,7 +42,7 @@ python -m cli
 ```
 
 Commands
-- `clia` — interactive curses menu
+- `clia` — interactive terminal menu
 - `clia list` — print available games and zero-based indices
 - `clia run <index|name>` — run a game directly (index is zero-based)
 - `clia reset [<index|name>] [-y]` — delete highscores for a game or all games
@@ -68,7 +64,7 @@ Packaging & publishing (brief)
 - The package exposes several console script aliases (see `setup.cfg` -> `options.entry_points.console_scripts`).
 
 Notes & Troubleshooting
-- On Windows, `curses` requires `windows-curses`.
+- No platform-specific terminal dependencies are required.
 - The CLI requires a minimum terminal size; if the menu exits with an error, try enlarging your terminal or run `python -m cli` in a larger window.
 - Games should live in their own subdirectory (`games/<slug>/game.py`) and export a `main(stdscr)` entry point. The CLI uses the directory name (slug) as the display title.
 

@@ -1,4 +1,4 @@
-import curses
+from game_classes import ptk
 from game_classes.tools import is_enter_key
 
 class Menu:
@@ -19,7 +19,7 @@ class Menu:
                 return name.strip() or 'Player'
             elif ch in (27,):
                 return False
-            elif ch in (curses.KEY_BACKSPACE, 127, 8):
+            elif ch in (ptk.KEY_BACKSPACE, 127, 8):
                 name = name[:-1]
             elif 32 <= ch <= 126 and len(name) < max_len:
                 name += chr(ch)
@@ -34,7 +34,7 @@ class Menu:
         title_height = len(self.game.title)
         for i, line in enumerate(self.game.title):
             try:
-                self.game.stdscr.addstr(i, 0, line, curses.color_pair(self.game.color) | curses.A_BOLD)
+                self.game.stdscr.addstr(i, 0, line, ptk.color_pair(self.game.color) | ptk.A_BOLD)
             except Exception:
                 pass
 
@@ -51,7 +51,7 @@ class Menu:
         self.game.stdscr.refresh()
         while True:
             ch = self.game.stdscr.getch()
-            # if ch in (ord('s'), ord('S')) or ch == curses.KEY_DOWN:
+            # if ch in (ord('s'), ord('S')) or ch == ptk.KEY_DOWN:
             if is_enter_key(ch):
                 # prompt for name before starting, centered over the title block
                 prompt_y = title_height + 3

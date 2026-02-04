@@ -1,4 +1,4 @@
-import curses
+from game_classes import ptk
 import os
 import importlib.util
 import argparse
@@ -8,7 +8,7 @@ import sys
 # helper: recognize Enter from multiple terminals/keypads
 def is_enter_key(ch):
     try:
-        enter_vals = {10, 13, getattr(curses, 'KEY_ENTER', -1), 343, 459}
+        enter_vals = {10, 13, getattr(ptk, 'KEY_ENTER', -1), 343, 459}
     except Exception:
         enter_vals = {10, 13}
     return ch in enter_vals
@@ -74,29 +74,29 @@ def _read_console_aliases():
 
 
 def _menu(stdscr):
-    curses.curs_set(0)
+    ptk.curs_set(0)
     stdscr.nodelay(False)
     # ensure a cyan color pair is available for the title
-    if curses.has_colors():
+    if ptk.has_colors():
         try:
           # init colors
-          curses.start_color()
-          curses.use_default_colors()
+          ptk.start_color()
+          ptk.use_default_colors()
           # try to normalize key colors (0..1000 scale). Must run before init_pair.
-          if curses.can_change_color() and curses.COLORS >= 8:
+          if ptk.can_change_color() and ptk.COLORS >= 8:
               try:
-                  curses.init_color(curses.COLOR_MAGENTA, 1000, 0, 1000)
-                  curses.init_color(curses.COLOR_YELLOW, 1000, 1000, 0)
-                  curses.init_color(curses.COLOR_WHITE, 1000, 1000, 1000)
-                  curses.init_color(curses.COLOR_CYAN, 0, 1000, 1000)
-                  curses.init_color(curses.COLOR_BLUE, 0, 0, 1000)
-                  curses.init_color(curses.COLOR_GREEN, 0, 800, 0)
-                  curses.init_color(curses.COLOR_RED, 1000, 0, 0)
-                  curses.init_color(curses.COLOR_BLACK, 0, 0, 0)
+                  ptk.init_color(ptk.COLOR_MAGENTA, 1000, 0, 1000)
+                  ptk.init_color(ptk.COLOR_YELLOW, 1000, 1000, 0)
+                  ptk.init_color(ptk.COLOR_WHITE, 1000, 1000, 1000)
+                  ptk.init_color(ptk.COLOR_CYAN, 0, 1000, 1000)
+                  ptk.init_color(ptk.COLOR_BLUE, 0, 0, 1000)
+                  ptk.init_color(ptk.COLOR_GREEN, 0, 800, 0)
+                  ptk.init_color(ptk.COLOR_RED, 1000, 0, 0)
+                  ptk.init_color(ptk.COLOR_BLACK, 0, 0, 0)
               except Exception:
                   pass
           for i in range(1,8):
-              curses.init_pair(i, i, -1)
+              ptk.init_pair(i, i, -1)
         except Exception:
             pass
     sel = 0
@@ -106,13 +106,13 @@ def _menu(stdscr):
         h, w = stdscr.getmaxyx()
         title_h = len(TITLE)
         title_start = 0
-        colors = [curses.COLOR_MAGENTA, curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_GREEN]
+        colors = [ptk.COLOR_MAGENTA, ptk.COLOR_MAGENTA, ptk.COLOR_CYAN, ptk.COLOR_CYAN, ptk.COLOR_GREEN, ptk.COLOR_GREEN]
         for i, line in enumerate(TITLE):
             try:
-                stdscr.addstr(title_start + i, 0, line, curses.color_pair(colors[i]))
+                stdscr.addstr(title_start + i, 0, line, ptk.color_pair(colors[i]))
             except Exception:
                 pass
-        stdscr.addstr(title_h + 1, 2, "Use Up/Down, PageUp/PageDown, Enter to start, ESC to quit", curses.color_pair(curses.COLOR_WHITE))
+        stdscr.addstr(title_h + 1, 2, "Use Up/Down, PageUp/PageDown, Enter to start, ESC to quit", ptk.color_pair(ptk.COLOR_WHITE))
         start_y = title_h + 3
         # number of lines available for the game list
         avail = max(1, h - start_y - 2)
@@ -126,9 +126,9 @@ def _menu(stdscr):
         for vis_i in range(min(avail, total)):
             i = top + vis_i
             name = GAMES[i][0]
-            attr = curses.A_REVERSE if i == sel else curses.A_NORMAL
+            attr = ptk.A_REVERSE if i == sel else ptk.A_NORMAL
             try:
-                stdscr.addstr(start_y + vis_i, 2, name[:w-4], curses.color_pair(curses.COLOR_CYAN) | attr)
+                stdscr.addstr(start_y + vis_i, 2, name[:w-4], ptk.color_pair(ptk.COLOR_CYAN) | attr)
             except Exception:
                 pass
         # optional scrollbar indicator when list is long
@@ -155,13 +155,13 @@ def _menu(stdscr):
         stdscr.refresh()
 
         ch = stdscr.getch()
-        if ch == curses.KEY_UP:
+        if ch == ptk.KEY_UP:
             sel = max(0, sel - 1)
-        elif ch == curses.KEY_DOWN:
+        elif ch == ptk.KEY_DOWN:
             sel = min(len(GAMES) - 1, sel + 1)
-        elif ch == curses.KEY_PPAGE:  # Page Up
+        elif ch == ptk.KEY_PPAGE:  # Page Up
             sel = max(0, sel - avail)
-        elif ch == curses.KEY_NPAGE:  # Page Down
+        elif ch == ptk.KEY_NPAGE:  # Page Down
             sel = min(len(GAMES) - 1, sel + avail)
         elif is_enter_key(ch):
             return sel
@@ -207,7 +207,7 @@ def _run_game_by_index(choice):
                 pass
     if hasattr(mod, 'main'):
         try:
-            curses.wrapper(mod.main)
+            ptk.wrapper(mod.main)
         except Exception as e:
             print(f"  [ERROR] Error running game {name}: {e}")
     else:
@@ -421,8 +421,8 @@ def main():
         _reset_game_by_index(choice, yes=yes)
         return
 
-    # run the menu under curses, then launch the chosen game's main()
-    choice = curses.wrapper(_menu)
+    # run the menu under ptk, then launch the chosen game's main()
+    choice = ptk.wrapper(_menu)
     if choice is None:
         return
     name, relpath = GAMES[choice]
@@ -457,7 +457,7 @@ def main():
     # call the game's main function if present
     if hasattr(mod, 'main'):
         try:
-            curses.wrapper(mod.main)
+            ptk.wrapper(mod.main)
         except Exception as e:
             print(f"  [ERROR] Error running game {name}: {e}")
     else:
