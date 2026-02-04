@@ -36,6 +36,7 @@ class Game(GameBase):
       })
       super().__init__(stdscr, player_name, 0.12, ptk.COLOR_GREEN)
       self.init_scores([['score', 0], ['level', 1]])
+      self.width += 2
 
       # game state
       self.count = 0
@@ -91,13 +92,13 @@ class Game(GameBase):
       except Exception:
         block = '#'
       # floor: across playable width
-      for fx in range(0, self.width + 1):
+      for fx in range(0, self.width + 2):
         try:
           self.stdscr.addch(self.height + 1, fx, block, ptk.color_pair(ptk.COLOR_GREEN))
         except Exception:
           pass
       # right wall: draw from top down to the floor at the rightmost column
-      right_col = max(0, self.width)
+      right_col = self.width + 1
       for wy in range(0, self.height + 1):
         try:
           self.stdscr.addch(wy, right_col, block, ptk.color_pair(ptk.COLOR_GREEN))
