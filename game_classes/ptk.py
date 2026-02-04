@@ -104,7 +104,7 @@ class _Screen:
         self._refresh_size()
         self.clear()
         try:
-            sys.stdout.write("\x1b[?25l")
+            sys.stdout.write("\x1b[?1049h\x1b[?25l")
             sys.stdout.flush()
         except Exception:
             pass
@@ -300,7 +300,7 @@ def wrapper(func):
     finally:
         stdscr.stop()
         try:
-            sys.stdout.write("\x1b[0m\x1b[2J\x1b[H\x1b[?25h")
+            sys.stdout.write("\x1b[0m\x1b[2J\x1b[3J\x1b[H\x1b[?25h\x1b[?1049l")
             sys.stdout.flush()
         except Exception:
             pass
