@@ -84,6 +84,25 @@ class Game(GameBase):
       except Exception:
         pass
       # draw paddle
+      # draw a green floor along the bottom using the BLOCK glyph, then
+      # draw a green right wall. Paddle is drawn on top of the floor.
+      try:
+        block = glyph('BLOCK')
+      except Exception:
+        block = '#'
+      # floor: across playable width
+      for fx in range(0, self.width + 1):
+        try:
+          self.stdscr.addch(self.height + 1, 1 + fx, block, ptk.color_pair(ptk.COLOR_GREEN))
+        except Exception:
+          pass
+      # right wall: draw from top down to the floor at terminal column (1 + self.width)
+      for wy in range(0, self.height + 1):
+        try:
+          self.stdscr.addch(wy, 1 + self.width, block, ptk.color_pair(ptk.COLOR_GREEN))
+        except Exception:
+          pass
+
       for i in range(self.paddle_w):
         x = clamp(self.paddle_x + i, 0, self.width - 1)
         try:
