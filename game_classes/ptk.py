@@ -204,7 +204,7 @@ class _Screen:
                         seq += "\x1b[2m"
                     if reverse:
                         seq += "\x1b[7m"
-                    if color in _ANSI_COLORS:
+                    if attr != 0 and color in _ANSI_COLORS:
                         seq += f"\x1b[{_ANSI_COLORS[color]}m"
                     line.append(seq)
                     prev_attr = attr
