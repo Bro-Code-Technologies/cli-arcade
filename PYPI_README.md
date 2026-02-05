@@ -63,3 +63,6 @@ All notable changes to this project will be documented in this file.
 - Byte Bouncer & Star Ship: floor + off-screen right wall; left-column bug fixed.
 - `ptk`: default-attribute/color emission fix; add helper to exit alt screen.
 - Fixed 180 movement glitch in Star Ship.
+
+### 2026.2.1
+- Updated key mapping to work with Linux and macOS terminals.

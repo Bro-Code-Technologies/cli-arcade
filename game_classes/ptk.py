@@ -5,8 +5,24 @@ import threading
 import queue
 import time
 
-from prompt_toolkit.input import create_input
-from prompt_toolkit.keys import Keys
+_HAS_PROMPT_TOOLKIT = True
+try:
+    from prompt_toolkit.input import create_input
+    from prompt_toolkit.keys import Keys
+except Exception:
+    create_input = None
+    Keys = None
+    _HAS_PROMPT_TOOLKIT = False
+import select
+
+_HAS_TERMIOS = True
+try:
+    import termios
+    import tty
+except Exception:
+    termios = None
+    tty = None
+    _HAS_TERMIOS = False
 
 # basic color constants (match curses style usage)
 COLOR_BLACK = 0
@@ -92,10 +108,29 @@ class _Screen:
         self._use_msvcrt = os.name == "nt"
         self._input = None
         self._thread = None
+        self._posix_fd = None
+        self._orig_term_attrs = None
         if not self._use_msvcrt:
-            self._input = create_input()
-            self._thread = threading.Thread(target=self._reader, daemon=True)
-            self._thread.start()
+            # Prefer a simple termios-based reader on POSIX for raw key capture
+            if _HAS_TERMIOS:
+                try:
+                    self._posix_fd = sys.stdin.fileno()
+                    self._orig_term_attrs = termios.tcgetattr(self._posix_fd)
+                    tty.setcbreak(self._posix_fd)
+                    self._thread = threading.Thread(target=self._posix_reader, daemon=True)
+                    self._thread.start()
+                except Exception:
+                    # fall back to prompt_toolkit if termios fails
+                    self._posix_fd = None
+                    self._orig_term_attrs = None
+            if self._posix_fd is None and _HAS_PROMPT_TOOLKIT and create_input is not None:
+                try:
+                    self._input = create_input()
+                    self._thread = threading.Thread(target=self._reader, daemon=True)
+                    self._thread.start()
+                except Exception as e:
+                    self._input = None
+                    sys.stderr.write(f"[ptk] create_input failed: {e}\n")
         self._timeout = 0.0
         self._buffer = []
         self._attrs = []
@@ -126,14 +161,92 @@ class _Screen:
                 try:
                     for key in self._input.read_keys():
                         self._queue.put(key)
-                except Exception:
+                except Exception as e:
+                    # log and continue — don't let the thread die silently
+                    sys.stderr.write(f"[ptk] reader exception: {e}\n")
                     time.sleep(0.01)
+
+    def _posix_reader(self):
+        if not _HAS_TERMIOS:
+            return
+        fd = self._posix_fd
+        buf = b""
+        while not self._stop.is_set():
+            try:
+                r, _, _ = select.select([fd], [], [], 0.1)
+                if not r:
+                    continue
+                chunk = os.read(fd, 32)
+                if not chunk:
+                    continue
+                buf += chunk
+                # process buffer for known sequences
+                while buf:
+                    # single-byte control checks
+                    if buf.startswith(b"\x1b"):
+                        # escape sequences: try to consume common sequences
+                        if buf.startswith(b"\x1b[A"):
+                            self._queue.put(KEY_UP)
+                            buf = buf[3:]
+                            continue
+                        if buf.startswith(b"\x1b[B"):
+                            self._queue.put(KEY_DOWN)
+                            buf = buf[3:]
+                            continue
+                        if buf.startswith(b"\x1b[C"):
+                            self._queue.put(KEY_RIGHT)
+                            buf = buf[3:]
+                            continue
+                        if buf.startswith(b"\x1b[D"):
+                            self._queue.put(KEY_LEFT)
+                            buf = buf[3:]
+                            continue
+                        # PageUp/PageDown common sequences
+                        if buf.startswith(b"\x1b[5~"):
+                            self._queue.put(KEY_PPAGE)
+                            buf = buf[4:]
+                            continue
+                        if buf.startswith(b"\x1b[6~"):
+                            self._queue.put(KEY_NPAGE)
+                            buf = buf[4:]
+                            continue
+                        # unknown escape: drop single ESC
+                        self._queue.put(27)
+                        buf = buf[1:]
+                        continue
+                    # newline / carriage return
+                    if buf[0] in (10, 13):
+                        self._queue.put(10)
+                        buf = buf[1:]
+                        continue
+                    # backspace (DEL or BS)
+                    if buf[0] in (8, 127):
+                        self._queue.put(KEY_BACKSPACE)
+                        buf = buf[1:]
+                        continue
+                    # regular printable character
+                    ch = buf[0]
+                    if 32 <= ch <= 126:
+                        self._queue.put(ch)
+                        buf = buf[1:]
+                        continue
+                    # unhandled byte: drop
+                    buf = buf[1:]
+            except Exception as e:
+                sys.stderr.write(f"[ptk] posix_reader exception: {e}\n")
+                time.sleep(0.01)
 
     def stop(self):
         self._stop.set()
         try:
             if self._input:
                 self._input.close()
+        except Exception:
+            pass
+        # restore termios attrs if we changed them
+        try:
+            if self._orig_term_attrs is not None and _HAS_TERMIOS:
+                termios.tcsetattr(self._posix_fd, termios.TCSANOW, self._orig_term_attrs)
         except Exception:
             pass
 
@@ -221,6 +334,9 @@ class _Screen:
             key = self._queue.get(timeout=self._timeout)
         except Exception:
             return -1
+        # key may be an int from posix reader or a keypress object from prompt_toolkit
+        if isinstance(key, int):
+            return key
         return _map_keypress(key)
 
 
