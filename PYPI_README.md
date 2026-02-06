@@ -66,3 +66,6 @@ All notable changes to this project will be documented in this file.
 
 ### 2026.2.1
 - Updated key mapping to work with Linux and macOS terminals.
+
+### 2026.3.0
+- Added `scores` command to CLI to display highscores for all games or a specific game, with optional raw JSON output.
