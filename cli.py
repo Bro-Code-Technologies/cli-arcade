@@ -378,6 +378,7 @@ def main():
         f'  %(prog)s list [-h]',
         f'  %(prog)s run [-h] [0, "Byte Bouncer"]',
         f'  %(prog)s reset [-h] [0, "Byte Bouncer"] [-y]',
+        f'  %(prog)s scores [-h] [0, "Byte Bouncer"] [-r]',
     ]
     aliases = _read_console_aliases()
     if aliases:
@@ -417,7 +418,115 @@ def main():
     )
     resetp.add_argument('game', nargs='?', help='Optional game name or zero-based index (omit to reset all)')
     resetp.add_argument('-y', '--yes', action='store_true', help='Do not prompt; proceed with deletion')
+    # Add hidden sync command for devs
+    syncp = sub.add_parser('sync', help=argparse.SUPPRESS)
+    syncp.add_argument('scores', help=argparse.SUPPRESS)
+    # Add scores command
+    scoresp = sub.add_parser(
+        'scores',
+        help='Show highscores for games',
+        description='Print highscores for all games or a specific game. Optionally output raw JSON.',
+        epilog='Examples:\n  %(prog)s scores\n  %(prog)s scores 0\n  %(prog)s scores "Byte Bouncer"\n  %(prog)s scores -r\n',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    scoresp.add_argument('game', nargs='?', help='Optional game name or zero-based index')
+    scoresp.add_argument('-r', '--raw', action='store_true', help='Output raw JSON string')
     args, _rest = parser.parse_known_args()
+    if args.cmd == 'sync':
+        import json
+        from game_classes.highscores import merge_update_highscores
+        scores_str = getattr(args, 'scores', None)
+        if not scores_str:
+            print('No scores string provided.')
+            return
+        try:
+            # Use json.loads for safe parsing
+            scores_obj = json.loads(scores_str)
+        except Exception as e:
+            print(f'Failed to parse scores string: {e}')
+            return
+        updated = merge_update_highscores(scores_obj)
+        print(f'Synced games: {updated}')
+        return
+
+    if args.cmd == 'scores':
+        import json
+        base = os.path.dirname(__file__)
+        games = GAMES
+        token = getattr(args, 'game', None)
+        raw = getattr(args, 'raw', False)
+        selected_dir = None
+        selected_display = None
+        if token is not None:
+            # Try integer index
+            try:
+                idx = int(token)
+                if 0 <= idx < len(games):
+                    # store both display name and directory name
+                    selected_display, rel = games[idx]
+                    selected_dir = os.path.basename(os.path.dirname(rel))
+                else:
+                    print(f"  [INFO] Index out of range: {idx}")
+                    for i, (name, rel) in enumerate(games):
+                        print(f"    [{i}] {name}")
+                    return
+            except Exception:
+                # Match by exact name (case-insensitive)
+                lowered = token.lower()
+                for i, (name, rel) in enumerate(games):
+                    if name.lower() == lowered:
+                        selected_display = name
+                        selected_dir = os.path.basename(os.path.dirname(rel))
+                        break
+                # Substring match
+                if selected_dir is None:
+                    for i, (name, rel) in enumerate(games):
+                        if lowered in name.lower():
+                            selected_display = name
+                            selected_dir = os.path.basename(os.path.dirname(rel))
+                            break
+                if selected_dir is None:
+                    print(f"  [INFO] Game not found: {token}")
+                    for i, (name, rel) in enumerate(games):
+                        print(f"    [{i}] {name}")
+                    return
+        def pretty_print_scores(game, scores):
+            print(f"\nHighscores for {game}:")
+            if not scores:
+                print("  [INFO] No saved highscores")
+                return
+            for key, value in scores.items():
+                if isinstance(value, dict) and 'player' in value and 'value' in value:
+                    player = value.get('player', 'Unknown')
+                    val = value.get('value', 0)
+                    print(f"  {key}: {player} - {val}")
+                else:
+                    print(f"  {key}: {value}")
+
+        from game_classes.highscores import get_saved_highscores
+
+        if selected_dir:
+            disp = selected_display or selected_dir
+            results = get_saved_highscores(selected_dir)
+            if not results:
+                print(f"  [INFO] No saved highscores for: {disp}")
+                return
+            scores = results[0]['scores']
+            if raw:
+                out = json.dumps(scores)
+                print(out.replace('"', '\\"'))
+            else:
+                pretty_print_scores(disp, scores)
+        else:
+            results = get_saved_highscores()
+            if raw:
+                mapping = {r['game']: r['scores'] for r in results}
+                out = json.dumps(mapping)
+                print(out.replace('"', '\\"'))
+            else:
+                for r in results:
+                    pretty_print_scores(r['game'], r['scores'])
+        return
 
     if args.cmd == 'list':
         base = os.path.dirname(__file__)
