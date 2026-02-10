@@ -91,6 +91,18 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 - Advanced: enable system-wide UTF-8 (Region → Administrative → Change system locale → check “Beta: Use Unicode UTF-8 for worldwide language support”) and restart. This affects other apps and requires caution.
 
+### Testing in Ubuntu on WSL
+```
+wsl -d Ubuntu
+```
+```
+cd Projects/cli-arcade
+```
+```
+py cli.py
+```
+- `ctrl` + `d` to exit wsl.
+
 ## Contributing
 - Add a new game by creating a subdirectory under `games/` with a `game.py` file that exports `main(stdscr)`.
 - Keep changes minimal and run `clia` locally to verify.

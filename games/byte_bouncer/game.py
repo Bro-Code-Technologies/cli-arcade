@@ -14,7 +14,7 @@ except Exception:
 from game_classes.highscores import HighScores
 from game_classes.game_base import GameBase
 from game_classes.menu import Menu
-from game_classes.tools import glyph, verify_terminal_size, init_ptk, clamp
+from game_classes.tools import glyph, init_ptk, clamp
 
 TITLE = [
      '  ____  _  _  ____  ____    ____   __   _  _  __ _   ___  ____  ____  ',

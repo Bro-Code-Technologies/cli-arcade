@@ -16,7 +16,7 @@ except Exception:
 from game_classes.highscores import HighScores
 from game_classes.game_base import GameBase
 from game_classes.menu import Menu
-from game_classes.tools import verify_terminal_size, init_ptk, is_enter_key
+from game_classes.tools import init_ptk, is_enter_key
 
 TITLE = [
      '___________                  .__              .__    ___________           ___.   .__          ',
