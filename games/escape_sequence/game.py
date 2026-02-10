@@ -71,7 +71,8 @@ class Game(GameBase):
         self.spawned_discs = []
         self.disc_bonus = 50
         # cooldown (ticks) to avoid immediate repeated disc spawns
-        self.disc_spawn_cooldown = 20
+        self.disc_spawn_cooldown_reset = 200
+        self.disc_spawn_cooldown = self.disc_spawn_cooldown_reset
 
     def draw_info(self):
       info_x = 2
@@ -226,7 +227,6 @@ class Game(GameBase):
         self.spawned_discs = [d for d in self.spawned_discs if d['x'] >= 0]
 
         # when obstacles pass the player, count them and increase level
-        # after reaching the current requirement; requirement increases by 10% each level
         try:
             # handled when marking 'passed' above; adjust tick here in case level changed elsewhere
             level = int(self.scores.get('level', 1))
@@ -241,16 +241,19 @@ class Game(GameBase):
         # collision detection: check if any obstacle overlaps player art
         try:
             player_coords = set()
-            if getattr(self, 'disc_active', False):
-                player_coords.add((self.player_y, self.player_x))
-            else:
-                frame = self.player_frames[self.frame_index % len(self.player_frames)]
-                for i, line in enumerate(frame):
-                    y = self.player_y + i - (len(frame) // 2)
-                    x0 = self.player_x - (len(line) // 2)
-                    for xi, ch in enumerate(line):
-                        if ch != ' ':
-                            player_coords.add((y, x0 + xi))
+            try:
+                if getattr(self, 'disc_active', False):
+                    # when disc is active, collisions only at the player's center
+                    player_coords.add((self.player_y, self.player_x))
+                else:
+                    # otherwise collisions include center and cells above/below (vertical slice)
+                    for dy in (-1, 0, 1):
+                        y = self.player_y + dy
+                        # clamp to play area (don't include title rows)
+                        y = max(len(self.title), min(self.height, y))
+                        player_coords.add((y, self.player_x))
+            except Exception:
+                player_coords = set()
             # collect spawned discs if overlapping player
             try:
                 for d in list(self.spawned_discs):
@@ -377,6 +380,8 @@ class Game(GameBase):
                 self.discs = min(25, int(getattr(self, 'discs', 2) + 1))
                 self.disc_active = False
                 self.disc_timer = 0
+                self.disc_spawn_cooldown = self.disc_spawn_cooldown_reset
+                self.spawned_discs = []
             except Exception:
                 pass
         except Exception:
