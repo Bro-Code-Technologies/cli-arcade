@@ -193,8 +193,7 @@ class Game(GameBase):
             # mark passed when they move left of player_x
             if not o.get('passed') and o['x'] < self.player_x:
                 o['passed'] = True
-                self.scores['score'] += 10 * (1 + (level - 1) * 0.5)  # more points for higher levels
-                # (level progression disabled)
+                self.scores['score'] += 10 * (1 + (level - 1) * 0.5) * max((getattr(self, 'player_x', 1) * 0.03), 1)
         # remove off-screen
         self.obstacles = [o for o in self.obstacles if o['x'] >= 0]
 
