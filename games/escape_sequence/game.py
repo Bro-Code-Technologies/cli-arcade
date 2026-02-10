@@ -13,7 +13,7 @@ except Exception:
 from game_classes.highscores import HighScores
 from game_classes.game_base import GameBase
 from game_classes.menu import Menu
-from game_classes.tools import init_ptk, glyph
+from game_classes.tools import init_ptk, glyph, is_enter_key
 import random
 import time
 
@@ -40,7 +40,7 @@ class Game(GameBase):
         self.init_scores([['score', 0], ['level', 1]])
 
         # player placement: player remains at fixed X; screen scrolls left
-        self.player_x = max(6, int(self.width * 0.15))
+        self.player_x = max(20, int(self.width * 0.15))
         # remember start x to restore on level-up
         self.start_player_x = int(self.player_x)
         self.player_y = self.height // 2
@@ -63,16 +63,40 @@ class Game(GameBase):
         self.initial_stall_ticks = 30
         self.initial_stall = int(self.initial_stall_ticks)
         self.finish_line = 3
+        # crouch: single-char mode to fit tight spots
+        self.crouches = 2
+        self.crouched = False
+        # crouch duration in ticks; how long crouch auto-expires
+        self.crouch_duration_ticks = 8
+        self.crouch_timer = 0
 
     def draw_info(self):
-        try:
-            info_x = 2
-            info_y = len(self.title)
-            self.stdscr.addstr(info_y + 1, info_x, f'Player: {self.player_name}')
-            self.stdscr.addstr(info_y + 2, info_x, f'Score: {int(self.scores["score"]):,}', ptk.color_pair(ptk.COLOR_GREEN))
-            self.stdscr.addstr(info_y + 3, info_x, f'Level: {int(self.scores.get("level", 1))}', ptk.color_pair(ptk.COLOR_BLUE))
-        except Exception:
-            pass
+      info_x = 2
+      info_y = len(self.title)
+      try:
+        # draw high scores below title
+        new_score = ' ***NEW High Score!' if self.new_highs.get('score', False) else ''
+        new_level = ' ***NEW High Level!' if self.new_highs.get('level', False) else ''
+        self.stdscr.addstr(info_y + 0, info_x, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]}){new_score}', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 1, info_x, f'High Level: {int(self.high_scores["level"]["value"]):,} ({self.high_scores["level"]["player"]}){new_level}', ptk.color_pair(ptk.COLOR_BLUE))
+
+        # draw crouch indicators
+        self.stdscr.addstr(info_y + 2, info_x, glyph('CIRCLE_FILLED', 'O') * self.crouches, ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
+
+        # draw game info below title
+        self.stdscr.addstr(info_y + 3, info_x, f'Player: {self.player_name}')
+        self.stdscr.addstr(info_y + 4, info_x, f'Score: {int(self.scores["score"]):,}', ptk.color_pair(ptk.COLOR_GREEN))
+        self.stdscr.addstr(info_y + 5, info_x, f'Level: {int(self.scores["level"]):,}', ptk.color_pair(ptk.COLOR_BLUE))
+
+        self.stdscr.addstr(info_y + 7 , info_x, '↑ | w       : Up')
+        self.stdscr.addstr(info_y + 8 , info_x, '↓ | s       : Down')
+        self.stdscr.addstr(info_y + 9 , info_x, '← | a       : Left')
+        self.stdscr.addstr(info_y + 10, info_x, '→ | d       : Right')
+        self.stdscr.addstr(info_y + 11, info_x, 'Enter/Space : Crouch')
+        self.stdscr.addstr(info_y + 12, info_x, 'Backspace   : Pause')
+        self.stdscr.addstr(info_y + 13, info_x, 'ESC         : Quit')
+      except Exception:
+        pass
 
     def draw(self):
         self.draw_info()
@@ -104,16 +128,25 @@ class Game(GameBase):
                 except Exception:
                     pass
 
-        # draw player (multi-line art) anchored at player_x, player_y (player_y is top line)
+        # draw player: either multi-line art or single-char crouch
         try:
-            frame = self.player_frames[self.frame_index % len(self.player_frames)]
-            for i, line in enumerate(frame):
-                y = self.player_y + i - (len(frame) // 2)
-                x = self.player_x - (len(line) // 2)
+            if getattr(self, 'crouched', False):
                 try:
-                    self.stdscr.addstr(y, x, line, ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
+                    self.stdscr.addch(self.player_y, self.player_x, glyph('CIRCLE_FILLED', 'O'), ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
                 except Exception:
-                    pass
+                    try:
+                        self.stdscr.addstr(self.player_y, self.player_x, glyph('CIRCLE_FILLED', 'O'))
+                    except Exception:
+                        pass
+            else:
+                frame = self.player_frames[self.frame_index % len(self.player_frames)]
+                for i, line in enumerate(frame):
+                    y = self.player_y + i - (len(frame) // 2)
+                    x = self.player_x - (len(line) // 2)
+                    try:
+                        self.stdscr.addstr(y, x, line, ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
+                    except Exception:
+                        pass
         except Exception:
             pass
 
@@ -130,6 +163,15 @@ class Game(GameBase):
         try:
             if getattr(self, 'initial_stall', 0) > 0:
                 self.initial_stall = max(0, int(self.initial_stall) - 1)
+        except Exception:
+            pass
+
+        # decrement crouch timer and auto-release if expired
+        try:
+            if getattr(self, 'crouch_timer', 0) > 0:
+                self.crouch_timer = max(0, int(self.crouch_timer) - 1)
+                if self.crouch_timer <= 0:
+                    self.crouched = False
         except Exception:
             pass
 
@@ -171,14 +213,17 @@ class Game(GameBase):
 
         # collision detection: check if any obstacle overlaps player art
         try:
-            frame = self.player_frames[self.frame_index % len(self.player_frames)]
             player_coords = set()
-            for i, line in enumerate(frame):
-                y = self.player_y + i - (len(frame) // 2)
-                x0 = self.player_x - (len(line) // 2)
-                for xi, ch in enumerate(line):
-                    if ch != ' ':
-                        player_coords.add((y, x0 + xi))
+            if getattr(self, 'crouched', False):
+                player_coords.add((self.player_y, self.player_x))
+            else:
+                frame = self.player_frames[self.frame_index % len(self.player_frames)]
+                for i, line in enumerate(frame):
+                    y = self.player_y + i - (len(frame) // 2)
+                    x0 = self.player_x - (len(line) // 2)
+                    for xi, ch in enumerate(line):
+                        if ch != ' ':
+                            player_coords.add((y, x0 + xi))
             for o in self.obstacles:
                 ox = int(o['x'])
                 oy = int(o['y'])
@@ -198,6 +243,26 @@ class Game(GameBase):
         # prevent movement while initial stall is active
         try:
             if getattr(self, 'initial_stall', 0) > 0:
+                return
+        except Exception:
+            pass
+        # crouch toggle on Enter or Space; limited uses per level
+        try:
+            if is_enter_key(ch) or ch == ord(' '):
+                if getattr(self, 'crouched', False):
+                    self.crouched = False
+                    self.crouch_timer = 0
+                else:
+                    if getattr(self, 'crouches', 0) > 0:
+                        self.crouched = True
+                        try:
+                            self.crouches -= 1
+                        except Exception:
+                            pass
+                        try:
+                            self.crouch_timer = int(getattr(self, 'crouch_duration_ticks', 8))
+                        except Exception:
+                            self.crouch_timer = 8
                 return
         except Exception:
             pass
@@ -249,6 +314,13 @@ class Game(GameBase):
             # increase spawn rate a bit
             try:
                 self.spawn_rate = min(0.6, getattr(self, 'spawn_rate', 0.12) + 0.03)
+            except Exception:
+                pass
+            # reset crouch uses and state for the new level
+            try:
+                self.crouches = min(25, int(getattr(self, 'crouches', 2) + 1))
+                self.crouched = False
+                self.crouch_timer = 0
             except Exception:
                 pass
         except Exception:
