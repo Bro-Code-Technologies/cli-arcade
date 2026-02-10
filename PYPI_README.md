@@ -69,3 +69,7 @@ All notable changes to this project will be documented in this file.
 
 ### 2026.3.0
 - Added `scores` command to CLI to display highscores for all games or a specific game, with optional raw JSON output.
+
+### 2026.4.0
+- Updated `scores` command for better display.
+- Added new game - Escape Sequence.
