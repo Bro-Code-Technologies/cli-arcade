@@ -418,9 +418,6 @@ def main():
     )
     resetp.add_argument('game', nargs='?', help='Optional game name or zero-based index (omit to reset all)')
     resetp.add_argument('-y', '--yes', action='store_true', help='Do not prompt; proceed with deletion')
-    # Add hidden sync command for devs
-    syncp = sub.add_parser('sync', help=argparse.SUPPRESS)
-    syncp.add_argument('scores', help=argparse.SUPPRESS)
     # Add scores command
     scoresp = sub.add_parser(
         'scores',
@@ -431,7 +428,16 @@ def main():
     )
     scoresp.add_argument('game', nargs='?', help='Optional game name or zero-based index')
     scoresp.add_argument('-r', '--raw', action='store_true', help='Output raw JSON string')
+
+    # Hidden commands for devs
+    syncp = sub.add_parser('sync')
+    syncp.add_argument('scores')
+    newp = sub.add_parser('new')
+    newp.add_argument('name')
+
     args, _rest = parser.parse_known_args()
+
+    # Hidden dev commands
     if args.cmd == 'sync':
         import json
         from game_classes.highscores import merge_update_highscores
@@ -448,7 +454,65 @@ def main():
         updated = merge_update_highscores(scores_obj)
         print(f'Synced games: {updated}')
         return
+    if args.cmd == 'new':
+        # Create a new game by copying the game_template directory
+        name = getattr(args, 'name', None)
+        if not name:
+            print('  [ERROR] No name provided for new game.')
+            return
+        slug = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+        if not slug:
+            print(f'  [ERROR] Invalid game name: {name}')
+            return
+        base = os.path.dirname(__file__)
+        games_dir = os.path.join(base, 'games')
+        target = os.path.join(games_dir, slug)
+        if os.path.exists(target):
+            print(f"  [ERROR] Target already exists: {target}")
+            return
 
+        template_dir = os.path.join(base, 'game_classes', 'game_template')
+        if not os.path.isdir(template_dir):
+            print(f"  [ERROR] Template dir not found: {template_dir}")
+            return
+
+        try:
+            os.makedirs(target, exist_ok=True)
+            # copy and replace placeholders in files
+            for namef in sorted(os.listdir(template_dir)):
+                src = os.path.join(template_dir, namef)
+                dst = os.path.join(target, namef)
+                # only handle regular files
+                if not os.path.isfile(src):
+                    continue
+                try:
+                    with open(src, 'r', encoding='utf-8') as fh:
+                        data = fh.read()
+                except Exception:
+                    data = None
+                if data is None:
+                    # fallback to binary copy
+                    try:
+                        import shutil
+                        shutil.copy2(src, dst)
+                    except Exception as e:
+                        print(f"  [WARN] Failed to copy {src}: {e}")
+                    continue
+                # replace placeholder token NEW_GAME with slug and a display title
+                new_data = data.replace('NEW_GAME', slug)
+                new_data = new_data.replace("'  NEW_GAME  '", f"'  {name}  '")
+                try:
+                    with open(dst, 'w', encoding='utf-8') as fh:
+                        fh.write(new_data)
+                except Exception as e:
+                    print(f"  [WARN] Failed to write {dst}: {e}")
+            print(f"  [CREATED] Game scaffold at: {target}")
+            print(f"  [INFO] Use 'clia list' to see the new game and 'clia run \"{name}\"' to run it.")
+        except Exception as e:
+            print(f"  [ERROR] Failed to create game: {e}")
+        return
+
+    # Public commands
     if args.cmd == 'scores':
         import json
         base = os.path.dirname(__file__)
