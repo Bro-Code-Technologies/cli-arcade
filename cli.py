@@ -554,8 +554,9 @@ def main():
                     for i, (name, rel) in enumerate(games):
                         print(f"    [{i}] {name}")
                     return
-        def pretty_print_scores(game, scores):
-            print(f"\nHighscores for {game}:")
+        def pretty_print_scores(game, scores, tab=''):
+            # Convert snake_case dir names (e.g. byte_bouncer_2) to Title Case
+            print(f"{tab}{game.replace('_', ' ').title()}")
             if not scores:
                 print("  [INFO] No saved highscores")
                 return
@@ -563,9 +564,9 @@ def main():
                 if isinstance(value, dict) and 'player' in value and 'value' in value:
                     player = value.get('player', 'Unknown')
                     val = value.get('value', 0)
-                    print(f"  {key}: {player} - {val}")
+                    print(f"{tab}  {key}: {player} - {val}")
                 else:
-                    print(f"  {key}: {value}")
+                    print(f"{tab}  {key}: {value}")
 
         from game_classes.highscores import get_saved_highscores
 
@@ -588,8 +589,9 @@ def main():
                 out = json.dumps(mapping)
                 print(out.replace('"', '\\"'))
             else:
+                print("Leaderboard")
                 for r in results:
-                    pretty_print_scores(r['game'], r['scores'])
+                    pretty_print_scores(r['game'], r['scores'], '  ')
         return
 
     if args.cmd == 'list':
