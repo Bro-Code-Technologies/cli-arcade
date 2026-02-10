@@ -63,12 +63,10 @@ class Game(GameBase):
         self.initial_stall_ticks = 30
         self.initial_stall = int(self.initial_stall_ticks)
         self.finish_line = 3
-        # crouch: single-char mode to fit tight spots
-        self.crouches = 2
-        self.crouched = False
-        # crouch duration in ticks; how long crouch auto-expires
-        self.crouch_duration_ticks = 8
-        self.crouch_timer = 0
+        self.discs = 2
+        self.disc_active = False
+        self.disc_duration_ticks = 8
+        self.disc_timer = 0
 
     def draw_info(self):
       info_x = 2
@@ -80,8 +78,8 @@ class Game(GameBase):
         self.stdscr.addstr(info_y + 0, info_x, f'High Score: {int(self.high_scores["score"]["value"]):,} ({self.high_scores["score"]["player"]}){new_score}', ptk.color_pair(ptk.COLOR_GREEN))
         self.stdscr.addstr(info_y + 1, info_x, f'High Level: {int(self.high_scores["level"]["value"]):,} ({self.high_scores["level"]["player"]}){new_level}', ptk.color_pair(ptk.COLOR_BLUE))
 
-        # draw crouch indicators
-        self.stdscr.addstr(info_y + 2, info_x, glyph('CIRCLE_FILLED', 'O') * self.crouches, ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
+        # draw disc indicators
+        self.stdscr.addstr(info_y + 2, info_x, glyph('CIRCLE_FILLED', 'O') * self.discs, ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
 
         # draw game info below title
         self.stdscr.addstr(info_y + 3, info_x, f'Player: {self.player_name}')
@@ -92,7 +90,7 @@ class Game(GameBase):
         self.stdscr.addstr(info_y + 8 , info_x, '↓ | s       : Down')
         self.stdscr.addstr(info_y + 9 , info_x, '← | a       : Left')
         self.stdscr.addstr(info_y + 10, info_x, '→ | d       : Right')
-        self.stdscr.addstr(info_y + 11, info_x, 'Enter/Space : Crouch')
+        self.stdscr.addstr(info_y + 11, info_x, 'Enter/Space : Use Disc')
         self.stdscr.addstr(info_y + 12, info_x, 'Backspace   : Pause')
         self.stdscr.addstr(info_y + 13, info_x, 'ESC         : Quit')
       except Exception:
@@ -128,9 +126,8 @@ class Game(GameBase):
                 except Exception:
                     pass
 
-        # draw player: either multi-line art or single-char crouch
         try:
-            if getattr(self, 'crouched', False):
+            if getattr(self, 'disc_active', False):
                 try:
                     self.stdscr.addch(self.player_y, self.player_x, glyph('CIRCLE_FILLED', 'O'), ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
                 except Exception:
@@ -166,12 +163,11 @@ class Game(GameBase):
         except Exception:
             pass
 
-        # decrement crouch timer and auto-release if expired
         try:
-            if getattr(self, 'crouch_timer', 0) > 0:
-                self.crouch_timer = max(0, int(self.crouch_timer) - 1)
-                if self.crouch_timer <= 0:
-                    self.crouched = False
+            if getattr(self, 'disc_timer', 0) > 0:
+                self.disc_timer = max(0, int(self.disc_timer) - 1)
+                if self.disc_timer <= 0:
+                    self.disc_active = False
         except Exception:
             pass
 
@@ -213,7 +209,7 @@ class Game(GameBase):
         # collision detection: check if any obstacle overlaps player art
         try:
             player_coords = set()
-            if getattr(self, 'crouched', False):
+            if getattr(self, 'disc_active', False):
                 player_coords.add((self.player_y, self.player_x))
             else:
                 frame = self.player_frames[self.frame_index % len(self.player_frames)]
@@ -245,23 +241,23 @@ class Game(GameBase):
                 return
         except Exception:
             pass
-        # crouch toggle on Enter or Space; limited uses per level
+        # disc toggle on Enter or Space; limited uses per level
         try:
             if is_enter_key(ch) or ch == ord(' '):
-                if getattr(self, 'crouched', False):
-                    self.crouched = False
-                    self.crouch_timer = 0
+                if getattr(self, 'disc_active', False):
+                    self.disc_active = False
+                    self.disc_timer = 0
                 else:
-                    if getattr(self, 'crouches', 0) > 0:
-                        self.crouched = True
+                    if getattr(self, 'discs', 0) > 0:
+                        self.disc_active = True
                         try:
-                            self.crouches -= 1
+                            self.discs -= 1
                         except Exception:
                             pass
                         try:
-                            self.crouch_timer = int(getattr(self, 'crouch_duration_ticks', 8))
+                            self.disc_timer = int(getattr(self, 'disc_duration_ticks', 8))
                         except Exception:
-                            self.crouch_timer = 8
+                            self.disc_timer = 8
                 return
         except Exception:
             pass
@@ -315,11 +311,10 @@ class Game(GameBase):
                 self.spawn_rate = min(0.6, getattr(self, 'spawn_rate', 0.12) + 0.03)
             except Exception:
                 pass
-            # reset crouch uses and state for the new level
             try:
-                self.crouches = min(25, int(getattr(self, 'crouches', 2) + 1))
-                self.crouched = False
-                self.crouch_timer = 0
+                self.discs = min(25, int(getattr(self, 'discs', 2) + 1))
+                self.disc_active = False
+                self.disc_timer = 0
             except Exception:
                 pass
         except Exception:
