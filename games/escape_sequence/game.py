@@ -197,7 +197,7 @@ class Game(GameBase):
         chance = min(0.5, self.spawn_rate + (level - 1) * 0.03)
         if random.random() < chance:
             # obstacle vertical placement within play area (avoid title area)
-            oy = random.randint(len(self.title), max(len(self.title), self.height - 2))
+            oy = random.randint(1, max(1, self.height - 2))
             h = random.choice([1, 2]) if level >= 2 else 1
             # spawn a few columns in from the right edge so blocks appear "in-screen"
             ox = max(0, self.width - self.finish_line)
@@ -205,7 +205,7 @@ class Game(GameBase):
 
         # spawn collectible discs occasionally (with cooldown to avoid clusters)
         if getattr(self, 'disc_spawn_cooldown', 0) <= 0:
-            dy = random.randint(len(self.title), max(len(self.title), self.height - 2))
+            dy = random.randint(1, max(1, self.height - 2))
             dx = max(0, self.width - self.finish_line)
             self.spawned_discs.append({'x': dx, 'y': dy})
             self.disc_spawn_cooldown = random.randint(500, 10000)
@@ -250,7 +250,7 @@ class Game(GameBase):
                     for dy in (-1, 0, 1):
                         y = self.player_y + dy
                         # clamp to play area (don't include title rows)
-                        y = max(len(self.title), min(self.height, y))
+                        y = max(1, min(self.height, y))
                         player_coords.add((y, self.player_x))
             except Exception:
                 player_coords = set()
@@ -329,7 +329,7 @@ class Game(GameBase):
 
         # allow Up/Down or w/s to move the player up/down within play area
         if ch in (ptk.KEY_UP, ord('w')):
-            self.player_y = max(len(self.title), self.player_y - 1)
+            self.player_y = max(1, self.player_y - 1)
         elif ch in (ptk.KEY_DOWN, ord('s')):
             self.player_y = min(self.height - 1, self.player_y + 1)
         # allow left/right movement within a reasonable left-side range
@@ -362,8 +362,8 @@ class Game(GameBase):
         try:
             self.obstacles = []
             # reset player position to starting X and center Y
-            self.player_x = int(getattr(self, 'start_player_x', max(6, int(self.width * 0.15))))
-            self.player_y = max(len(self.title), min(self.height // 2, self.player_y))
+            self.player_x = int(getattr(self, 'start_player_x', 25))
+            self.player_y = max(1, min(self.height // 2, self.player_y))
             # short stall so the board can refill
             self.initial_stall = int(getattr(self, 'initial_stall_ticks', 10))
             # speed up tick modestly
