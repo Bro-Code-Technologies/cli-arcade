@@ -40,10 +40,11 @@ class Game(GameBase):
         self.init_scores([['score', 0], ['level', 1]])
 
         # player placement: player remains at fixed X; screen scrolls left
-        self.player_x = max(20, int(self.width * 0.15))
+        self.player_x = 25
+        self.player_y = 9
         # remember start x to restore on level-up
         self.start_player_x = int(self.player_x)
-        self.player_y = self.height // 2
+        self.start_player_y = int(self.player_y)
 
         # running animation frames (simple multi-line glyphs)
         self.player_frames = [
@@ -362,8 +363,8 @@ class Game(GameBase):
         try:
             self.obstacles = []
             # reset player position to starting X and center Y
-            self.player_x = int(getattr(self, 'start_player_x', 25))
-            self.player_y = max(1, min(self.height // 2, self.player_y))
+            self.player_x = self.start_player_x
+            self.player_y = self.start_player_y
             # short stall so the board can refill
             self.initial_stall = int(getattr(self, 'initial_stall_ticks', 10))
             # speed up tick modestly
