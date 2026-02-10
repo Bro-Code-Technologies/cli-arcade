@@ -25,7 +25,7 @@ TITLE = [
 ]
 
 # minimum terminal size required to run this game (cols, rows)
-MIN_COLS = 70
+MIN_COLS = 100
 MIN_ROWS = 20
 
 class Game(GameBase):
@@ -41,12 +41,14 @@ class Game(GameBase):
 
         # player placement: player remains at fixed X; screen scrolls left
         self.player_x = max(6, int(self.width * 0.15))
+        # remember start x to restore on level-up
+        self.start_player_x = int(self.player_x)
         self.player_y = self.height // 2
 
         # running animation frames (simple multi-line glyphs)
         self.player_frames = [
             [ r'  O  ', r' /|\ ', r' / \ ' ],
-            [ r'  O  ', r' /|\ ', r' /|  ' ],
+            [ r'  O  ', r'  |  ', r'  |  ' ],
         ]
         self.frame_index = 0
         self.frame_time = 0.0
@@ -56,6 +58,11 @@ class Game(GameBase):
         self.spawn_acc = 0.0
         self.spawn_rate = 0.12  # base chance per tick to spawn
         self.last_step = time.time()
+        # progression: levels are static for this game (no auto-increment)
+        # initial stall: number of ticks to disable player movement at game start
+        self.initial_stall_ticks = 30
+        self.initial_stall = int(self.initial_stall_ticks)
+        self.finish_line = 3
 
     def draw_info(self):
         try:
@@ -74,6 +81,18 @@ class Game(GameBase):
             obs_ch = glyph('BLOCK')
         except Exception:
             obs_ch = '#'
+        # color the rightmost 3 columns as a background panel
+        try:
+            bg_pair = ptk.color_pair(ptk.COLOR_MAGENTA) | ptk.A_REVERSE
+            right_start = max(0, self.width - self.finish_line)
+            for col in range(right_start, self.width):
+                for ry in range(0, self.height + 1):
+                    try:
+                        self.stdscr.addch(ry, col, ' ', bg_pair)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
         for o in list(self.obstacles):
             ox = int(o['x'])
             oy = int(o['y'])
@@ -107,6 +126,13 @@ class Game(GameBase):
         except Exception:
             pass
 
+        # decrement initial stall so obstacles can build up before player moves
+        try:
+            if getattr(self, 'initial_stall', 0) > 0:
+                self.initial_stall = max(0, int(self.initial_stall) - 1)
+        except Exception:
+            pass
+
         # spawn obstacles probabilistically; spawn_rate scales with level
         level = int(self.scores.get('level', 1))
         # slightly higher spawn chance per tick with level
@@ -115,7 +141,8 @@ class Game(GameBase):
             # obstacle vertical placement within play area (avoid title area)
             oy = random.randint(len(self.title), max(len(self.title), self.height - 2))
             h = random.choice([1, 2]) if level >= 2 else 1
-            ox = self.width - 1
+            # spawn a few columns in from the right edge so blocks appear "in-screen"
+            ox = max(0, self.width - self.finish_line)
             self.obstacles.append({'x': ox, 'y': oy, 'h': h, 'passed': False})
 
         # move obstacles left
@@ -124,20 +151,23 @@ class Game(GameBase):
             # mark passed when they move left of player_x
             if not o.get('passed') and o['x'] < self.player_x:
                 o['passed'] = True
-                self.scores['score'] += 10
+                self.scores['score'] += 10 * (1 + (level - 1) * 0.5)  # more points for higher levels
+                # (level progression disabled)
         # remove off-screen
         self.obstacles = [o for o in self.obstacles if o['x'] >= 0]
 
-        # level progression: every 100 points increase level
-        score = int(self.scores.get('score', 0))
-        new_level = 1 + score // 100
-        if new_level != int(self.scores.get('level', 1)):
-            self.scores['level'] = new_level
-            # speed up tick slightly
+        # when obstacles pass the player, count them and increase level
+        # after reaching the current requirement; requirement increases by 10% each level
+        try:
+            # handled when marking 'passed' above; adjust tick here in case level changed elsewhere
+            level = int(self.scores.get('level', 1))
+            # ensure tick reflects level
             try:
-                self.tick = max(0.03, 0.12 - (new_level - 1) * 0.01)
+                self.tick = max(0.03, 0.12 - (level - 1) * 0.01)
             except Exception:
                 pass
+        except Exception:
+            pass
 
         # collision detection: check if any obstacle overlaps player art
         try:
@@ -165,11 +195,64 @@ class Game(GameBase):
             pass
 
     def movement(self, ch):
+        # prevent movement while initial stall is active
+        try:
+            if getattr(self, 'initial_stall', 0) > 0:
+                return
+        except Exception:
+            pass
+
         # allow Up/Down or w/s to move the player up/down within play area
         if ch in (ptk.KEY_UP, ord('w')):
             self.player_y = max(len(self.title), self.player_y - 1)
         elif ch in (ptk.KEY_DOWN, ord('s')):
             self.player_y = min(self.height - 1, self.player_y + 1)
+        # allow left/right movement within a reasonable left-side range
+        elif ch in (ptk.KEY_LEFT, ord('a')):
+            self.player_x = max(2, self.player_x - 2)
+        elif ch in (ptk.KEY_RIGHT, ord('d')):
+            self.player_x = min(self.width - 2, self.player_x + 2)
+            # if player reaches the finish-line region, advance level (restart board but keep score)
+            try:
+                if self.player_x >= max(0, self.width - int(self.finish_line)):
+                    try:
+                        self._level_up()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    def _level_up(self):
+        """Increase level, clear the board, and reset player position while keeping score."""
+        try:
+            cur = int(self.scores.get('level', 1))
+        except Exception:
+            cur = 1
+        new_level = cur + 1
+        try:
+            self.scores['level'] = new_level
+        except Exception:
+            pass
+        # clear obstacles and reset counters
+        try:
+            self.obstacles = []
+            # reset player position to starting X and center Y
+            self.player_x = int(getattr(self, 'start_player_x', max(6, int(self.width * 0.15))))
+            self.player_y = max(len(self.title), min(self.height // 2, self.player_y))
+            # short stall so the board can refill
+            self.initial_stall = int(getattr(self, 'initial_stall_ticks', 10))
+            # speed up tick modestly
+            try:
+                self.tick = max(0.03, 0.12 - (new_level - 1) * 0.01)
+            except Exception:
+                pass
+            # increase spawn rate a bit
+            try:
+                self.spawn_rate = min(0.6, getattr(self, 'spawn_rate', 0.12) + 0.03)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
 def main(stdscr):
   init_ptk(stdscr)
