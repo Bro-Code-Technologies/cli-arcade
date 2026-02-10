@@ -67,6 +67,11 @@ class Game(GameBase):
         self.disc_active = False
         self.disc_duration_ticks = 8
         self.disc_timer = 0
+        # spawned disc items (collectibles moving left); keep separate from `self.discs` resource count
+        self.spawned_discs = []
+        self.disc_bonus = 50
+        # cooldown (ticks) to avoid immediate repeated disc spawns
+        self.disc_spawn_cooldown = 20
 
     def draw_info(self):
       info_x = 2
@@ -126,6 +131,20 @@ class Game(GameBase):
                 except Exception:
                     pass
 
+        # draw spawned discs (collectibles)
+        try:
+            disc_ch = glyph('CIRCLE_FILLED', 'O')
+        except Exception:
+            disc_ch = 'o'
+        for d in list(self.spawned_discs):
+            dx = int(d['x'])
+            dy = int(d['y'])
+            try:
+                if 0 <= dy <= self.height and 0 <= dx <= self.width:
+                    self.stdscr.addch(dy, dx, disc_ch, ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
+            except Exception:
+                pass
+
         try:
             if getattr(self, 'disc_active', False):
                 try:
@@ -183,6 +202,14 @@ class Game(GameBase):
             ox = max(0, self.width - self.finish_line)
             self.obstacles.append({'x': ox, 'y': oy, 'h': h, 'passed': False})
 
+        # spawn collectible discs occasionally (with cooldown to avoid clusters)
+        if getattr(self, 'disc_spawn_cooldown', 0) <= 0:
+            dy = random.randint(len(self.title), max(len(self.title), self.height - 2))
+            dx = max(0, self.width - self.finish_line)
+            self.spawned_discs.append({'x': dx, 'y': dy})
+            self.disc_spawn_cooldown = random.randint(500, 10000)
+        else:
+            self.disc_spawn_cooldown = max(0, int(self.disc_spawn_cooldown) - 1)
         # move obstacles left
         for o in list(self.obstacles):
             o['x'] -= 1
@@ -192,6 +219,11 @@ class Game(GameBase):
                 self.scores['score'] += 10 * (1 + (level - 1) * 0.5) * max((getattr(self, 'player_x', 1) * 0.03), 1)
         # remove off-screen
         self.obstacles = [o for o in self.obstacles if o['x'] >= 0]
+
+        # move spawned discs left and remove off-screen
+        for d in list(self.spawned_discs):
+            d['x'] -= 1
+        self.spawned_discs = [d for d in self.spawned_discs if d['x'] >= 0]
 
         # when obstacles pass the player, count them and increase level
         # after reaching the current requirement; requirement increases by 10% each level
@@ -219,6 +251,36 @@ class Game(GameBase):
                     for xi, ch in enumerate(line):
                         if ch != ' ':
                             player_coords.add((y, x0 + xi))
+            # collect spawned discs if overlapping player
+            try:
+                for d in list(self.spawned_discs):
+                    dx = int(d['x'])
+                    dy = int(d['y'])
+                    if (dy, dx) in player_coords:
+                        try:
+                            # increase resource count (`self.discs`) up to a cap
+                            cur = int(getattr(self, 'discs', 0))
+                            cap = 25
+                            if cur < cap:
+                                try:
+                                    self.discs = cur + 1
+                                except Exception:
+                                    pass
+                            # award bonus score
+                            try:
+                                self.scores['score'] += int(getattr(self, 'disc_bonus', 50)) * level * self.player_x * 0.03
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                        try:
+                            self.spawned_discs.remove(d)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            # obstacle collisions cause game over
             for o in self.obstacles:
                 ox = int(o['x'])
                 oy = int(o['y'])
