@@ -168,6 +168,19 @@ class Game(GameBase):
         except Exception:
             pass
 
+        # show start countdown while initial_stall is active
+        try:
+            stall = int(getattr(self, 'initial_stall', 0))
+            if stall > 0:
+                # approximate seconds remaining
+                try:
+                    secs = stall * float(getattr(self, 'tick', 0.12))
+                except Exception:
+                    secs = float(stall)
+                self.stdscr.addstr(self.height // 2 + 1, self.width // 2 - 7, f'Start in: {secs:.1f}s', ptk.color_pair(ptk.COLOR_BLUE) | ptk.A_BOLD)
+        except Exception:
+            pass
+
     def step(self, now):
         # advance animation frame periodically
         try:
