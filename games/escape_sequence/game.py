@@ -24,6 +24,10 @@ TITLE = [
   '                                                       ▀▀                                 '
 ]
 
+DESCRIPTION = """Avoid the red blocks and reach the end to escape each level!
+Each level gets faster and adds more red blocks.
+Can you escape the sequence?"""
+
 # minimum terminal size required to run this game (cols, rows)
 MIN_COLS = 100
 MIN_ROWS = 20

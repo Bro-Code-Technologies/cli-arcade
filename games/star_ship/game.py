@@ -25,6 +25,10 @@ TITLE = [
   "                            /_/       "                            
 ]
 
+DESCRIPTION = """Pilot your starship through the stars!
+Your Star Ship grows longer with each star you collect, but be careful not to collide with yourself or the walls!
+How long can you survive?"""
+
 # minimum terminal size required to run this game (cols, rows)
 MIN_COLS = 70
 MIN_ROWS = 20

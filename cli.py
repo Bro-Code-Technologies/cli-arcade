@@ -7,6 +7,7 @@ import glob
 import sys
 import re
 import time
+import textwrap
 
 # helper: recognize Enter from multiple terminals/keypads
 def is_enter_key(ch):
@@ -57,6 +58,16 @@ def _discover_games():
             try:
                 with open(file_to_check, 'r', encoding='utf-8') as fh:
                     src = fh.read()
+                # try to read DESCRIPTION from the game file (triple-quoted or single-line)
+                try:
+                    mdesc = re.search(r"DESCRIPTION\s*=\s*(?P<quote>\'\'\'|\"\"\")(.*?)(?P=quote)", src, re.S)
+                    if mdesc:
+                        desc_text = mdesc.group(2).strip()
+                    else:
+                        m2 = re.search(r"DESCRIPTION\s*=\s*(?P<q>['\"])(?P<t>.*?)(?P=q)", src)
+                        desc_text = m2.group('t').strip() if m2 else None
+                except Exception:
+                    desc_text = None
                 m = re.search(r'MIN_TERMINAL\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)', src)
                 if m:
                     min_cols = int(m.group(1))
@@ -76,6 +87,12 @@ def _discover_games():
             rel = os.path.relpath(file_to_check, base).replace('\\', '/')
             games.append((name, rel))
             try:
+                # store extracted description by slug (directory name)
+                if desc_text:
+                    GAME_DESCS[entry] = desc_text
+            except Exception:
+                pass
+            try:
                 GAME_MINS[rel] = (min_cols, min_rows)
             except Exception:
                 pass
@@ -83,7 +100,17 @@ def _discover_games():
 
 
 GAME_MINS = {}
+# Mapping filled during discovery
+GAME_DESCS = {}
 GAMES = _discover_games()
+
+# Mapping of game slug -> description extracted from the game's source file.
+# Game authors can define a DESCRIPTION variable in their game module; it will
+# be shown in the menu. Example in a game's `game.py`:
+#    DESCRIPTION = "Short description of the game"
+# Padding (spaces) between the border and content inside the right-hand panel.
+# Increase to widen inner padding; default is 1.
+PANEL_PADDING = 1
 
 
 def _read_console_aliases():
@@ -151,12 +178,16 @@ def _menu(stdscr):
         if top > max(0, total - avail):
             top = max(0, total - avail)
 
+        # Reserve a right-hand panel for descriptions/highscores.
+        # Right panel gets up to ~40 cols or remaining space; left list uses the rest.
+        right_w = min(40, max(20, w))
+        left_w = max(20, w - right_w - 6)
         for vis_i in range(min(avail, total)):
             i = top + vis_i
             name = GAMES[i][0]
             attr = ptk.A_REVERSE if i == sel else ptk.A_NORMAL
             try:
-                stdscr.addstr(start_y + vis_i, 2, name[:w-4], ptk.color_pair(ptk.COLOR_CYAN) | attr)
+                stdscr.addstr(start_y + vis_i, 2, name[:left_w - 2], ptk.color_pair(ptk.COLOR_CYAN) | attr)
             except Exception:
                 pass
         # optional scrollbar indicator when list is long
@@ -180,6 +211,125 @@ def _menu(stdscr):
                     stdscr.addstr(bar_y + thumb_pos + by, w - 2, block)
             except Exception:
                 pass
+        # Draw right-hand panel for the currently selected game's description
+        # and highscores. This is updated every frame as the selection changes.
+        try:
+            # determine slug (directory name) for selected game
+            rel = GAMES[sel][1]
+            slug = os.path.basename(os.path.dirname(rel))
+            desc = GAME_DESCS.get(slug, '')
+
+            # Position the panel 3 spaces to the right of the longest game title.
+            max_name_len = max((len(n) for n, _ in GAMES), default=0)
+            panel_x = 3 + max_name_len
+            # If the calculated panel would overflow the screen, fall back
+            # to the previous conservative position based on `left_w`.
+            if panel_x + right_w + 1 > w:
+                panel_x = left_w + 2
+            # shift panel up one row so it sits 1 line above the list area
+            panel_y = max(0, start_y - 1)
+            # draw a border around the panel
+            try:
+                from game_classes.tools import _UNICODE as _USE_UNI
+            except Exception:
+                _USE_UNI = False
+            if _USE_UNI:
+                tl, tr, bl, br, hch, vch = '┌', '┐', '└', '┘', '─', '│'
+            else:
+                tl, tr, bl, br, hch, vch = '+', '+', '+', '+', '-', '|'
+            # Build content (description + highscores), compute size, draw box, then render
+            try:
+                wrapped = textwrap.wrap(desc, width=max(10, right_w - 4)) if desc else []
+            except Exception:
+                wrapped = []
+
+            # gather highscores
+            try:
+                from game_classes.highscores import get_saved_highscores
+                results = get_saved_highscores(slug)
+                scores = results[0].get('scores') if results else None
+            except Exception:
+                scores = None
+
+            hs_lines = []
+            if not scores:
+                hs_lines = ['No saved highscores']
+            else:
+                entries = []
+                for k, v in scores.items():
+                    if isinstance(v, dict) and 'value' in v:
+                        try:
+                            val = float(v.get('value', 0))
+                        except Exception:
+                            val = 0
+                        entries.append((k, v.get('player', 'Player'), val))
+                    else:
+                        entries.append((k, str(v), 0))
+                for ent in entries[:5]:
+                    key_label = ent[0].replace('_', ' ').title()
+                    if isinstance(ent[2], (int, float)):
+                            try:
+                                disp_val = int(ent[2])
+                                disp_str = f"{disp_val:,}"
+                            except Exception:
+                                disp_str = str(ent[2])
+                            hs_lines.append(f"{key_label}: {ent[1]} - {disp_str}")
+                    else:
+                        hs_lines.append(f"{key_label}: {ent[1]}")
+
+            # Compose content lines including a header
+            content_lines = []
+            content_lines.append('Description:')
+            content_lines.extend(wrapped)
+            content_lines.append('')
+            content_lines.append('Leaderboard:')
+            content_lines.extend(hs_lines)
+
+            # compute display lines (tab non-header lines), content width and panel dimensions
+            headers = ('Description:', 'Leaderboard:')
+            display_lines = [l if l in headers else ('  ' + l) for l in content_lines]
+            left_border_x = panel_x
+            content_start = left_border_x + 1 + PANEL_PADDING
+            content_width = max((len(l) for l in display_lines), default=0)
+            right_border_x = content_start + content_width + PANEL_PADDING
+            if right_border_x >= w - 1:
+                right_border_x = w - 2
+                content_width = max(0, right_border_x - content_start - 1)
+
+            panel_w = right_border_x - left_border_x + 1
+            panel_h = min(avail, max(6, len(content_lines) + 2))
+
+            # draw box
+            try:
+                border_attr = ptk.color_pair(ptk.COLOR_MAGENTA) | ptk.A_BOLD
+                stdscr.addstr(panel_y, left_border_x, tl + (hch * (panel_w - 2)) + tr, border_attr)
+                for by in range(1, panel_h - 1):
+                    stdscr.addstr(panel_y + by, left_border_x, vch, border_attr)
+                    try:
+                        stdscr.addstr(panel_y + by, right_border_x, vch, border_attr)
+                    except Exception:
+                        pass
+                stdscr.addstr(panel_y + panel_h - 1, left_border_x, bl + (hch * (panel_w - 2)) + br, border_attr)
+            except Exception:
+                pass
+
+            # render content inside box (use display_lines with tabbing)
+            try:
+                for idx, line in enumerate(display_lines[: panel_h - 2]):
+                    try:
+                        if line in headers:
+                            attr = ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD
+                        else:
+                            attr = ptk.A_NORMAL
+                        stdscr.addstr(panel_y + 1 + idx, content_start, line[:content_width], attr)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        except Exception:
+            # best-effort: ignore panel rendering errors
+            pass
+
         stdscr.refresh()
 
         ch = stdscr.getch()
@@ -564,7 +714,15 @@ def main():
                 if isinstance(value, dict) and 'player' in value and 'value' in value:
                     player = value.get('player', 'Unknown')
                     val = value.get('value', 0)
-                    print(f"{tab}  {key}: {player} - {val}")
+                    try:
+                        if isinstance(val, float) or (isinstance(val, str) and '.' in str(val)):
+                            val_disp = int(float(val))
+                        else:
+                            val_disp = int(val)
+                        val_str = f"{val_disp:,}"
+                    except Exception:
+                        val_str = str(val)
+                    print(f"{tab}  {key}: {player} - {val_str}")
                 else:
                     print(f"{tab}  {key}: {value}")
 
@@ -669,7 +827,7 @@ def main():
     # run the selected game, then return to the menu when the game exits.
     while True:
         try:
-            verify_terminal_size('CLI Arcade', 70, 20)
+            verify_terminal_size('CLI Arcade', 70, 25)
         except SystemExit:
             return
         choice = ptk.wrapper(_menu)

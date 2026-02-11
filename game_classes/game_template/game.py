@@ -19,6 +19,11 @@ TITLE = [
   '  NEW_GAME  '
 ]
 
+DESCRIPTION = """Put something here!
+This is a template for building new games.
+You can customize the title, description, and game logic to create your own unique game.
+The description will be shown in the menu, so make it enticing!"""
+
 # minimum terminal size required to run this game (cols, rows)
 MIN_COLS = 70
 MIN_ROWS = 20
