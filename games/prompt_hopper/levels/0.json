@@ -23,11 +23,11 @@
   ],
   "ground": [
     "You are a prompt hopper, a being that can jump between different prompts and scenarios in the Terminal.",
-    4,
+    10,
     "Your goal is to solve each level by following the prompts and jumping to the correct platforms.",
-    6,
+    12,
     "Use your knowledge of the Terminal and your problem-solving skills to navigate through the levels and reach the end.",
-    5,
+    8,
     "Good luck!"
   ]
 }

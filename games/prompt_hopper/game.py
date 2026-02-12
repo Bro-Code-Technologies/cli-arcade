@@ -57,8 +57,10 @@ class Game(GameBase):
         self.player_y = None
         # map vertical physics (map moves up to simulate player falling)
         self.map_y_offset_f = 0.0
-        self.map_v = -0.2
-        self.map_gravity = 0.02
+        # start with a stronger upward velocity so the map begins moving immediately
+        self.map_v = -1
+        # increase gravity so acceleration is more noticeable
+        self.map_gravity = 0.2
         self.map_v_max = -1.5
         self.load_level(self.level)
         # player fixed position: centered X and 5 rows up from bottom
@@ -247,7 +249,46 @@ class Game(GameBase):
         # Note: do not draw exit or glyphs — user requested text only
 
     def step(self, now):
-        pass
+        # map upward-fall with collision against the player
+        try:
+            # accelerate upward (map moves up -> negative velocity)
+            self.map_v -= getattr(self, 'map_gravity', 0.02)
+            # clamp to max upward speed
+            mv_max = getattr(self, 'map_v_max', None)
+            if mv_max is not None:
+                self.map_v = max(self.map_v, mv_max)
+
+            # tentative next offset
+            next_map_y = self.map_y_offset_f + float(self.map_v)
+
+            # player position
+            px = int(self.player_x) if getattr(self, 'player_x', None) is not None else 0
+            py = int(self.player_y) if getattr(self, 'player_y', None) is not None else 0
+
+            collided = False
+            for t in self.texts:
+                try:
+                    if t.get('kind') not in ('ground', 'prompt'):
+                        continue
+                    tx = int(t.get('x', 0))
+                    sx = tx + int(getattr(self, 'x_offset', 0))
+                    ty = int(t.get('y', 0))
+                    sy_next = ty + int(next_map_y)
+                    text_len = len(str(t.get('text', '')))
+                    # collision: text would occupy the row directly below the player
+                    if sy_next == py + 1 and sx <= px < sx + text_len:
+                        # align map so the text sits at py+1 and stop upward motion
+                        self.map_y_offset_f = (py + 1) - ty
+                        self.map_v = 0.0
+                        collided = True
+                        break
+                except Exception:
+                    continue
+
+            if not collided:
+                self.map_y_offset_f = next_map_y
+        except Exception:
+            pass
 
     def movement(self, ch):
         # left/right movement and jump
