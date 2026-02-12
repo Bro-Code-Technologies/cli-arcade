@@ -1,10 +1,7 @@
 {
+  "start": [30, 0],
   "exit": [200, 1],
   "platforms": [
-    {
-      "area_0": "       s      ",
-      "position": [80, 1]
-    },
     {
       "prompt": "Jump here first",
       "position": [25, 5]
@@ -20,7 +17,7 @@
       "position": [75, 9]
     },
     {
-      "area_0": "       g      ",
+      "area_1": "g",
       "position": [190, 1]
     }
   ],

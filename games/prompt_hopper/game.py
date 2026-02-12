@@ -51,6 +51,10 @@ class Game(GameBase):
         self.texts = []
         self.ground_text_lines = []
         self.ground_y = None
+        self.x_offset = 0
+        self.y_offset = 0
+        self.player_x = None
+        self.player_y = None
         self.load_level(self.level)
 
     def draw_info(self):
@@ -82,25 +86,26 @@ class Game(GameBase):
                 try:
                     x = int(t.get('x', 0))
                     y = int(t.get('y', 0))
+                    sx = x + int(getattr(self, 'x_offset', 0))
                     s = str(t.get('text', ''))
-                    if y < 0 or x >= self.width or y >= self.height:
+                    if y < 0 or sx >= self.width or y >= self.height:
                         continue
                     # truncate to width
-                    s = s[:max(0, self.width - x)]
+                    s = s[:max(0, self.width - sx)]
                     if not s:
                         continue
                     # use prompt styling for prompt- or ground-kind, otherwise default
                     if t.get('kind') in ('prompt', 'ground'):
                         try:
-                            self.stdscr.addstr(y, x, s, prompt_attr)
+                            self.stdscr.addstr(y, sx, s, prompt_attr)
                         except Exception:
                             try:
-                                self.stdscr.addstr(y, x, s)
+                                self.stdscr.addstr(y, sx, s)
                             except Exception:
                                 pass
                     else:
                         try:
-                            self.stdscr.addstr(y, x, s)
+                            self.stdscr.addstr(y, sx, s)
                         except Exception:
                             pass
                 except Exception:
@@ -172,6 +177,46 @@ class Game(GameBase):
                 self.texts.append({'x': px, 'y': py, 'text': str(p.get('prompt')), 'kind': 'prompt'})
 
             # skip area_* items for now (user requested)
+
+        # handle start: center the start x on screen and apply vertical offset (downwards)
+        # default offsets
+        self.x_offset = getattr(self, 'x_offset', 0)
+        self.y_offset = getattr(self, 'y_offset', 0)
+        self.player_x = None
+        self.player_y = None
+        if 'start' in data:
+            try:
+                st = data.get('start', [0])
+                sx = int(st[0]) if len(st) > 0 else 0
+            except Exception:
+                sx = 0
+            try:
+                dy = int(st[1]) if len(st) > 1 else 0
+            except Exception:
+                dy = 0
+            # compute horizontal centering
+            try:
+                center_x = max(0, self.width // 2)
+            except Exception:
+                center_x = 0
+            self.x_offset = center_x - sx
+            # apply vertical offset downward from ground
+            try:
+                self.y_offset = dy
+                self.player_x = center_x
+                self.player_y = (self.ground_y + dy) if self.ground_y is not None else dy
+            except Exception:
+                self.y_offset = 0
+                self.player_x = center_x
+                self.player_y = self.ground_y
+
+        # apply vertical offset to every text entry
+        if self.y_offset:
+            for t in self.texts:
+                try:
+                    t['y'] = int(t.get('y', 0)) + int(self.y_offset)
+                except Exception:
+                    pass
 
         # Note: do not draw exit or glyphs — user requested text only
 
