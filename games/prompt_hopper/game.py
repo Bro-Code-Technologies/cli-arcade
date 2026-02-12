@@ -55,7 +55,19 @@ class Game(GameBase):
         self.y_offset = 0
         self.player_x = None
         self.player_y = None
+        # map vertical physics (map moves up to simulate player falling)
+        self.map_y_offset_f = 0.0
+        self.map_v = -0.2
+        self.map_gravity = 0.02
+        self.map_v_max = -1.5
         self.load_level(self.level)
+        # player fixed position: centered X and 5 rows up from bottom
+        try:
+            self.player_x = max(0, self.width // 2)
+            self.player_y = max(0, self.height - 5)
+        except Exception:
+            self.player_x = 0
+            self.player_y = max(0, 0)
 
     def draw_info(self):
         try:
@@ -82,13 +94,15 @@ class Game(GameBase):
                 except Exception:
                     prompt_attr = ptk.A_BOLD
 
+            map_y_off_int = int(getattr(self, 'map_y_offset_f', 0))
             for t in self.texts:
                 try:
                     x = int(t.get('x', 0))
                     y = int(t.get('y', 0))
                     sx = x + int(getattr(self, 'x_offset', 0))
+                    sy = y + map_y_off_int
                     s = str(t.get('text', ''))
-                    if y < 0 or sx >= self.width or y >= self.height:
+                    if sy < 0 or sx >= self.width or sy >= self.height:
                         continue
                     # truncate to width
                     s = s[:max(0, self.width - sx)]
@@ -97,20 +111,36 @@ class Game(GameBase):
                     # use prompt styling for prompt- or ground-kind, otherwise default
                     if t.get('kind') in ('prompt', 'ground'):
                         try:
-                            self.stdscr.addstr(y, sx, s, prompt_attr)
+                            self.stdscr.addstr(sy, sx, s, prompt_attr)
                         except Exception:
                             try:
-                                self.stdscr.addstr(y, sx, s)
+                                self.stdscr.addstr(sy, sx, s)
                             except Exception:
                                 pass
                     else:
                         try:
-                            self.stdscr.addstr(y, sx, s)
+                            self.stdscr.addstr(sy, sx, s)
                         except Exception:
                             pass
                 except Exception:
                     pass
             # (ground segments are now added to self.texts as kind='ground')
+
+            # draw player glyph at the centered player position
+            try:
+                if getattr(self, 'player_x', None) is not None and getattr(self, 'player_y', None) is not None:
+                    px = int(self.player_x)
+                    py = int(self.player_y)
+                    if 0 <= py < self.height and 0 <= px < self.width:
+                        try:
+                            self.stdscr.addstr(py, px, 'o', ptk.color_pair(ptk.COLOR_WHITE) | ptk.A_BOLD)
+                        except Exception:
+                            try:
+                                self.stdscr.addstr(py, px, 'o')
+                            except Exception:
+                                pass
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -200,15 +230,11 @@ class Game(GameBase):
             except Exception:
                 center_x = 0
             self.x_offset = center_x - sx
-            # apply vertical offset downward from ground
+            # apply vertical offset downward from ground (texts only)
             try:
                 self.y_offset = dy
-                self.player_x = center_x
-                self.player_y = (self.ground_y + dy) if self.ground_y is not None else dy
             except Exception:
                 self.y_offset = 0
-                self.player_x = center_x
-                self.player_y = self.ground_y
 
         # apply vertical offset to every text entry
         if self.y_offset:
