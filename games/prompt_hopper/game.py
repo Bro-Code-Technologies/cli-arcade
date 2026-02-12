@@ -225,12 +225,18 @@ class Game(GameBase):
 
     def movement(self, ch):
         # left/right movement and jump
-        if ch in (ptk.KEY_LEFT, ord('a')):
-            pass
-        elif ch in (ptk.KEY_RIGHT, ord('d')):
-            pass
-        elif ch in (ptk.KEY_UP, ord('w'), ord(' ')):
-            # jump
+        try:
+            delta = 2
+            # pressing left or 'a' should move the map right (increase x_offset)
+            if ch in (ptk.KEY_LEFT, ord('a')):
+                self.x_offset = int(getattr(self, 'x_offset', 0)) + delta
+            # pressing right or 'd' should move the map left (decrease x_offset)
+            elif ch in (ptk.KEY_RIGHT, ord('d')):
+                self.x_offset = int(getattr(self, 'x_offset', 0)) - delta
+            elif ch in (ptk.KEY_UP, ord('w'), ord(' ')):
+                # jump (not implemented yet)
+                pass
+        except Exception:
             pass
 
 
