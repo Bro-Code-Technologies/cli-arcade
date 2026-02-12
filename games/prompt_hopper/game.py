@@ -273,11 +273,16 @@ class Game(GameBase):
                     tx = int(t.get('x', 0))
                     sx = tx + int(getattr(self, 'x_offset', 0))
                     ty = int(t.get('y', 0))
-                    sy_next = ty + int(next_map_y)
+                    # current and next screen Y for this text
+                    cur_sy = ty + int(self.map_y_offset_f)
+                    next_sy = ty + int(next_map_y)
                     text_len = len(str(t.get('text', '')))
-                    # collision: text would occupy the row directly below the player
-                    if sy_next == py + 1 and sx <= px < sx + text_len:
-                        # align map so the text sits at py+1 and stop upward motion
+                    # collision if the text crosses the row directly below the player
+                    # (handles both upward and downward map motion)
+                    target_row = py + 1
+                    crosses_target = (cur_sy > target_row and next_sy <= target_row) or (cur_sy < target_row and next_sy >= target_row) or (next_sy == target_row)
+                    if crosses_target and sx <= px < sx + text_len:
+                        # align map so the text sits at py+1 and stop vertical motion
                         self.map_y_offset_f = (py + 1) - ty
                         self.map_v = 0.0
                         collided = True
@@ -287,6 +292,11 @@ class Game(GameBase):
 
             if not collided:
                 self.map_y_offset_f = next_map_y
+            # update on_ground flag
+            try:
+                self.on_ground = bool(collided)
+            except Exception:
+                self.on_ground = False
         except Exception:
             pass
 
@@ -301,8 +311,14 @@ class Game(GameBase):
             elif ch in (ptk.KEY_RIGHT, ord('d')):
                 self.x_offset = int(getattr(self, 'x_offset', 0)) - delta
             elif ch in (ptk.KEY_UP, ord('w'), ord(' ')):
-                # jump (not implemented yet)
-                pass
+                # jump: only when standing on ground
+                try:
+                    if getattr(self, 'on_ground', False):
+                        # give map a downward velocity so player moves up
+                        self.map_v = 1.5
+                        self.on_ground = False
+                except Exception:
+                    pass
         except Exception:
             pass
 
