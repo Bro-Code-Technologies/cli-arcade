@@ -7,11 +7,11 @@ Collection of small terminal games bundled with a single CLI launcher.
 
 ## Quick start
 ```powershell
-# list installed console aliases and available games
-clia list
-
 # run interactive menu
 clia
+
+# list installed console aliases and available games
+clia list
 
 # run a game by zero-based index or name
 clia run 0
@@ -21,13 +21,23 @@ clia run "Byte Bouncer"
 clia reset 0
 clia reset "Byte Bouncer"
 clia reset -y  # skip confirmation
+
+# display highscores for all games or a specific game
+clia scores
+clia scores 0
+clia scores "Byte Bouncer"
+
+# display save directory and executable path
+clia find
 ```
 
 ## Commands
 - `clia` — interactive terminal menu
 - `clia list` — print available games and zero-based indices
 - `clia run <index|name>` — run a game directly (index is zero-based)
-- `clia reset [<index|name>] [-y]` — delete highscores for a game or all games
+- `clia reset [<index|name>] [-y|--yes]` — delete highscores for a game or all games
+- `clia scores [<index|name>] [-r|--raw]` — display highscores for all games or a specific game, with optional raw JSON output
+- `clia find` — display save directory and executable path
 - Aliases available: `cli-arcade`
 
 ## License

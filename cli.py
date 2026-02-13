@@ -523,12 +523,12 @@ def main():
     # support simple CLI subcommands (e.g. `clia list`)
     # build epilog with examples and any console script aliases from setup.cfg
     epilog_lines = [
-        'Examples:',
-        f'  %(prog)s',
+        'Commands:',
+        f'  %(prog)s [-h|--help] [-v|--version]',
         f'  %(prog)s list [-h]',
-        f'  %(prog)s run [-h] [0, "Byte Bouncer"]',
-        f'  %(prog)s reset [-h] [0, "Byte Bouncer"] [-y]',
-        f'  %(prog)s scores [-h] [0, "Byte Bouncer"] [-r]',
+        f'  %(prog)s run [-h] <index|name>',
+        f'  %(prog)s reset [-h] [<index|name>] [-y|--yes]',
+        f'  %(prog)s scores [-h] [<index|name>] [-r|--raw]',
     ]
     aliases = _read_console_aliases()
     if aliases:
