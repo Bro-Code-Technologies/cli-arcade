@@ -1,0 +1,36 @@
+{
+  "exit": [200, 1],
+  "platforms": [
+    {
+      "area_0": "       s      ",
+      "position": [80, 1]
+    },
+    {
+      "prompt": "Jump here first",
+      "position": [25, 5]
+    },
+    {
+      "area_4": "   c          ",
+      "prompt": "Jump here next",
+      "position": [50, 7]
+    },
+    {
+      "area_1": "       k      ",
+      "prompt": "Jump here last",
+      "position": [75, 9]
+    },
+    {
+      "area_0": "       g      ",
+      "position": [190, 1]
+    }
+  ],
+  "ground": [
+    "You are a prompt hopper, a being that can jump between different prompts and scenarios in the Terminal.",
+    4,
+    "Your goal is to solve each level by following the prompts and jumping to the correct platforms.",
+    6,
+    "Use your knowledge of the Terminal and your problem-solving skills to navigate through the levels and reach the end.",
+    5,
+    "Good luck!"
+  ]
+}
