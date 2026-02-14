@@ -83,3 +83,7 @@ All notable changes to this project will be documented in this file.
 ### 2026.4.0
 - Updated `scores` command for better display.
 - Added new game - Escape Sequence.
+
+### 2026.4.1
+- Updated PyPI links and documentation.
+- Added description and leaderboard display to the menu.

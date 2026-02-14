@@ -26,6 +26,11 @@ clia run "Byte Bouncer"
 clia reset 0
 clia reset "Byte Bouncer"
 clia reset -y  # skip confirmation
+
+# display highscores for all games or a specific game
+clia scores
+clia scores 0
+clia scores "Byte Bouncer"
 ```
 
 If the `clia` command is not found after installation, the installer likely wrote scripts to your user Scripts directory. On Windows add this to your PATH (PowerShell):
@@ -46,6 +51,7 @@ python -m cli
 - `clia list` — print available games and zero-based indices
 - `clia run <index|name>` — run a game directly (index is zero-based)
 - `clia reset [<index|name>] [-y]` — delete highscores for a game or all games
+- `clia scores [<index|name>] [-r]` — display highscores for all games or a specific game, with optional raw JSON output
 - Aliases available: `cli-arcade`
 
 ### Highscores storage and migration

@@ -542,7 +542,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     # standard --version support
-    parser.add_argument('-v', '--version', action='version', version=f"%(prog)s {_read_version_from_setupcfg()}")
+    parser.add_argument('-version', '--version', action='version', version=f"%(prog)s {_read_version_from_setupcfg()}")
     sub = parser.add_subparsers(dest='cmd')
     sub.add_parser(
         'list',
@@ -567,7 +567,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     resetp.add_argument('game', nargs='?', help='Optional game name or zero-based index (omit to reset all)')
-    resetp.add_argument('-y', '--yes', action='store_true', help='Do not prompt; proceed with deletion')
+    resetp.add_argument('-yes', '--yes', action='store_true', help='Do not prompt; proceed with deletion')
     # Add scores command
     scoresp = sub.add_parser(
         'scores',
@@ -577,13 +577,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     scoresp.add_argument('game', nargs='?', help='Optional game name or zero-based index')
-    scoresp.add_argument('-r', '--raw', action='store_true', help='Output raw JSON string')
+    scoresp.add_argument('-raw', '--raw', action='store_true', help='Output raw JSON string')
 
     # Hidden commands for devs
     syncp = sub.add_parser('sync')
     syncp.add_argument('scores')
     newp = sub.add_parser('new')
     newp.add_argument('name')
+    findp = sub.add_parser('find')
 
     args, _rest = parser.parse_known_args()
 
@@ -660,6 +661,84 @@ def main():
             print(f"  [INFO] Use 'clia list' to see the new game and 'clia run \"{name}\"' to run it.")
         except Exception as e:
             print(f"  [ERROR] Failed to create game: {e}")
+        return
+    if args.cmd == 'find':
+        # User-data highscore paths discovered via HighScores
+        user_paths = set()
+        try:
+            from game_classes.highscores import HighScores
+            for name, rel in GAMES:
+                slug = os.path.basename(os.path.dirname(rel))
+                try:
+                    hs = HighScores(slug)
+                    p = hs._path()
+                    if p:
+                        user_paths.add(p)
+                except Exception:
+                    pass
+        except Exception:
+            user_paths = set()
+
+        if user_paths:
+            print('User highscore files:')
+            for p in sorted(user_paths):
+                print(f'  {p}')
+        else:
+            print('  [INFO] No user highscore files found.')
+
+        # Executable information: try to resolve installed console_scripts
+        try:
+            import shutil
+            found = []
+            # Prefer known console script aliases from installed metadata
+            try:
+                aliases = _read_console_aliases()
+            except Exception:
+                aliases = []
+            for alias in aliases:
+                try:
+                    p = shutil.which(alias)
+                    if p:
+                        found.append((alias, os.path.abspath(p)))
+                except Exception:
+                    pass
+
+            # Also examine argv[0] (useful when running in-place or via a wrapper)
+            try:
+                arg0 = sys.argv[0] if sys.argv and sys.argv[0] else None
+                if arg0:
+                    if os.path.isabs(arg0) and os.path.exists(arg0):
+                        found.append((os.path.basename(arg0), os.path.abspath(arg0)))
+                    else:
+                        w = shutil.which(arg0)
+                        if w:
+                            found.append((arg0, os.path.abspath(w)))
+                        else:
+                            bn = os.path.basename(arg0)
+                            w2 = shutil.which(bn)
+                            if w2:
+                                found.append((bn, os.path.abspath(w2)))
+            except Exception:
+                pass
+
+            # Deduplicate and print results
+            seen = set()
+            if found:
+                print('Resolved entry points / executables:')
+                for name, path in found:
+                    if path in seen:
+                        continue
+                    seen.add(path)
+                    print(f'  {name}: {path}')
+            else:
+                # Fallback to showing the current script path
+                try:
+                    script = os.path.abspath(sys.argv[0]) if sys.argv and sys.argv[0] else os.path.abspath(__file__)
+                    print(f'Script/entry path: {script}')
+                except Exception:
+                    pass
+        except Exception:
+            pass
         return
 
     # Public commands
