@@ -26,9 +26,6 @@ clia reset -y  # skip confirmation
 clia scores
 clia scores 0
 clia scores "Byte Bouncer"
-
-# display save directory and executable path
-clia find
 ```
 
 ## Commands
@@ -37,7 +34,6 @@ clia find
 - `clia run <index|name>` — run a game directly (index is zero-based)
 - `clia reset [<index|name>] [-y|--yes]` — delete highscores for a game or all games
 - `clia scores [<index|name>] [-r|--raw]` — display highscores for all games or a specific game, with optional raw JSON output
-- `clia find` — display save directory and executable path
 - Aliases available: `cli-arcade`
 
 ## License
