@@ -27,6 +27,10 @@ TITLE = [
     r'             \/            \/        \/     \/                            \/    \/          \/ '
 ]
 
+DESCRIPTION = """Guide the falling pieces to create full lines and clear them from the board!
+Each cleared line scores points, and every 10 lines increases the level and speed.
+Don't let the pieces stack up to the top!"""
+
 # minimum terminal size required to run this game (cols, rows)
 MIN_COLS = 100
 MIN_ROWS = 30

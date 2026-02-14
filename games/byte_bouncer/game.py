@@ -23,6 +23,10 @@ TITLE = [
     r' (____/(__/   (__) (____)  (____/ \__/ \____/\_)__) \___)(____)(__\_) '
 ]
 
+DESCRIPTION = """Bounce the ball and try to keep it from hitting the floor!
+Each successful bounce scores points, and every 5 bounces increases the level and spawns a new ball.
+How long can you keep them all in play?"""
+
 # minimum terminal size required to run this game (cols, rows)
 MIN_COLS = 70
 MIN_ROWS = 20
