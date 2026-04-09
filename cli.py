@@ -469,6 +469,14 @@ def _reset_game_by_index(choice, yes=False):
             print(f"  [DELETED] {f}")
         except Exception as e:
             print(f"  [ERROR] Failed to delete {f}: {e}")
+    # Also remove from API when configured.
+    try:
+        from game_classes import api as _cli_api
+        if _cli_api.is_enabled():
+            slug = os.path.basename(game_dir)
+            _cli_api.delete_scores(slug)
+    except Exception:
+        pass
 
 
 def _reset_all_games(yes=False):
@@ -506,6 +514,18 @@ def _reset_all_games(yes=False):
             print(f"  [DELETED] {f}")
         except Exception as e:
             print(f"  [ERROR] Failed to delete {f}: {e}")
+    # Also remove from API when configured.
+    try:
+        from game_classes import api as _cli_api
+        if _cli_api.is_enabled():
+            for _name, _rel in GAMES:
+                _slug = os.path.basename(os.path.dirname(os.path.join(base, _rel)))
+                try:
+                    _cli_api.delete_scores(_slug)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 # CLI version: read from setup.cfg to keep a single source of truth
 def _read_version_from_setupcfg():
@@ -580,31 +600,12 @@ def main():
     scoresp.add_argument('-raw', '--raw', action='store_true', help='Output raw JSON string')
 
     # Hidden commands for devs
-    syncp = sub.add_parser('sync')
-    syncp.add_argument('scores')
     newp = sub.add_parser('new')
     newp.add_argument('name')
     findp = sub.add_parser('find')
 
     args, _rest = parser.parse_known_args()
-
     # Hidden dev commands
-    if args.cmd == 'sync':
-        import json
-        from game_classes.highscores import merge_update_highscores
-        scores_str = getattr(args, 'scores', None)
-        if not scores_str:
-            print('No scores string provided.')
-            return
-        try:
-            # Use json.loads for safe parsing
-            scores_obj = json.loads(scores_str)
-        except Exception as e:
-            print(f'Failed to parse scores string: {e}')
-            return
-        updated = merge_update_highscores(scores_obj)
-        print(f'Synced games: {updated}')
-        return
     if args.cmd == 'new':
         # Create a new game by copying the game_template directory
         name = getattr(args, 'name', None)
