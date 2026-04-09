@@ -23,6 +23,7 @@ env/
 .DS_Store
 Thumbs.db
 .agents
+Agents.md
 
 # Test / coverage / lint
 .pytest_cache/
