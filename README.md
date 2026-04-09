@@ -1,6 +1,8 @@
 # CLI Arcade
 
 Collection of small terminal games bundled with a single CLI launcher.
+![cli-arcade](https://github.com/user-attachments/assets/f26df282-e10e-4387-a8f3-24f39ea70b8d)
+
 
 ## Requirements
 - Python 3.8+
