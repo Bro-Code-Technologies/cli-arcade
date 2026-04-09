@@ -8,6 +8,14 @@ try:
 except Exception:
     appdirs = None
 
+try:
+    from game_classes import api as _api
+except Exception:
+    try:
+        import api as _api
+    except Exception:
+        _api = None
+
 
 class HighScores:
     """Per-game highscores stored in a user-writable location.
@@ -62,6 +70,25 @@ class HighScores:
         return self.path
 
     def load(self):
+        # Try API first (if configured).
+        if _api is not None and _api.is_enabled():
+            try:
+                api_data = _api.get_scores(self.game)
+                if isinstance(api_data, dict):
+                    # Fill in any metrics not returned by the API with defaults.
+                    for k, v in self.default.items():
+                        if k not in api_data or not isinstance(api_data[k], dict):
+                            api_data[k] = v.copy()
+                    return api_data
+            except Exception:
+                pass
+            # API enabled but unreachable — return defaults (no local fallback).
+            try:
+                return {k: v.copy() for k, v in self.default.items()}
+            except Exception:
+                return dict(self.default)
+
+        # Local JSON (API not configured).
         path = self._path()
         try:
             if os.path.exists(path):
@@ -83,7 +110,32 @@ class HighScores:
         except Exception:
             return dict(self.default)
 
+    def _write_local(self, data):
+        """Write data to the local JSON cache (best-effort, no exceptions raised)."""
+        path = self._path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
     def save(self, data):
+        # When API is enabled, save only to the API.
+        if _api is not None and _api.is_enabled():
+            try:
+                _api.save_scores(self.game, data)
+            except Exception:
+                pass
+            return True
+
+        # API not configured — persist locally (original behavior).
         path = self._path()
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -123,7 +175,26 @@ def get_saved_highscores(game=None, appname='cli-arcade', appauthor=None):
     ``HighScores.load()`` are not used here).
     """
     results = []
-    # Determine candidate game names
+
+    # When API is enabled, fetch from server instead of local files.
+    if _api is not None and _api.is_enabled():
+        try:
+            api_data = _api.get_scores(game)
+            if isinstance(api_data, dict):
+                if game:
+                    # Single game — api_data is {metric: {player, value}}
+                    results.append({'game': game, 'scores': api_data})
+                else:
+                    # All games — api_data is {game_name: {metric: ...}}
+                    for g, scores in sorted(api_data.items()):
+                        if isinstance(scores, dict):
+                            results.append({'game': g, 'scores': scores})
+            return results
+        except Exception:
+            pass
+        return results  # API enabled but unreachable — return empty rather than stale local
+
+    # Local JSON (API not configured).
     names = []
     if game:
         names = [game]
@@ -151,7 +222,6 @@ def get_saved_highscores(game=None, appname='cli-arcade', appauthor=None):
             if isinstance(data, dict):
                 results.append({'game': name, 'scores': data})
         except Exception:
-            # ignore unreadable files and continue
             continue
 
     return results

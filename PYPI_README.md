@@ -83,3 +83,10 @@ All notable changes to this project will be documented in this file.
 ### 2026.4.1
 - Updated PyPI links and documentation.
 - Added description and leaderboard display to the menu.
+
+### 2026.5.0
+- Removed highscore saving to local JSON files.
+- Added server API integration for high score storage.
+
+### 2026.5.1
+- Removed broken game `Prompt Hopper`

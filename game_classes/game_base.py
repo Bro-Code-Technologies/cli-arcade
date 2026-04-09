@@ -39,19 +39,26 @@ class GameBase:
     return updated
 
   def update_high_scores(self):
-    """Update the `high_scores` dict if current player exceeds any metric and save."""
+    """Update the `high_scores` dict in memory if current player exceeds any metric.
+
+    NOTE: No longer saves to disk/API here. Saving is deferred to
+    save_scores_on_exit() which is called once when the game loop exits.
+    This prevents flooding the server with a save on every frame.
+    """
     updated = False
     try:
       for metric in self.scores:
         updated |= self.check_and_set_scores(metric)
     except Exception:
       updated = False
-    if updated:
-      try:
-        self.highscores.save(self.high_scores)
-      except Exception:
-        pass
     return updated
+
+  def save_scores_on_exit(self):
+    """Persist high scores once when the game loop exits (ESC or game over)."""
+    try:
+      self.highscores.save(self.high_scores)
+    except Exception:
+      pass
   
   def step(self, now):
     pass
@@ -119,3 +126,5 @@ class GameBase:
       except Exception:
         pass
       time.sleep(0.01)
+    # Save high scores once after the loop exits (ESC or game over).
+    self.save_scores_on_exit()

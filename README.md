@@ -56,8 +56,25 @@ python -m cli
 - `clia scores [<index|name>] [-r]` — display highscores for all games or a specific game, with optional raw JSON output
 - Aliases available: `cli-arcade`
 
-### Highscores storage and migration
-- Highscores are now stored in a user-writable application data directory. Typical locations:
+### API & highscores
+
+By default, highscores are saved to and loaded from the brocodetech API (`https://brocodetech.com`). No configuration required — it works out of the box.
+
+**Override the API URL (e.g., point at a local dev server):**
+```powershell
+$env:CLI_ARCADE_API_URL = "http://localhost:8080"
+```
+
+**Disable the API and use local JSON files instead:**
+```powershell
+$env:CLI_ARCADE_API_URL = "disabled"
+# or simply unset the variable; when requests is not installed, local mode is also used
+```
+
+When API mode is active, scores are stored server-side only — no local JSON files are written. When API is disabled, scores fall back to local JSON (see below).
+
+### Highscores local storage (fallback / API-disabled mode)
+- Highscores are stored in a user-writable application data directory. Typical locations:
 	- Windows (appdirs): `%LOCALAPPDATA%\cli-arcade\games\<game>\highscores.json`
 	- Fallback (no appdirs): `%USERPROFILE%\.cli-arcade\games\<game>\highscores.json`
 - On first run the CLI attempts to migrate any legacy `games/<game>/highscores.json` found in the project into the user data directory.

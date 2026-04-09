@@ -22,6 +22,8 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+.agents
+Agents.md
 
 # Test / coverage / lint
 .pytest_cache/
@@ -40,6 +42,7 @@ pip-wheel-metadata/
 # Logs and runtime files
 *.log
 *.bak
+.docs/
 
 # Optional: lockfiles / local config
 *.env
