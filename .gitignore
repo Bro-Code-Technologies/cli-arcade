@@ -41,6 +41,7 @@ pip-wheel-metadata/
 # Logs and runtime files
 *.log
 *.bak
+.docs/
 
 # Optional: lockfiles / local config
 *.env
