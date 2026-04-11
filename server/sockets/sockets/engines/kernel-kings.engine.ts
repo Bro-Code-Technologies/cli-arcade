@@ -155,12 +155,16 @@ export class KernelKingsEngine {
     }
   }
 
-  /** Play a random legal move for the AI. */
+  /** Play a random legal move for the AI, including multi-jump chains. */
   private doAiMove(): void {
     if (this.aiSlot === null) return;
     if (this.state.turn !== this.aiSlot) return;
 
-    const moves = legalMoves(this.state.board, this.aiSlot);
+    // When mustJump is set, continue from that piece only (double/triple/quad jump chain)
+    const moves = this.state.mustJump
+      ? legalMoves(this.state.board, this.aiSlot, this.state.mustJump).filter((m) => m.jumped !== null)
+      : legalMoves(this.state.board, this.aiSlot);
+
     if (!moves.length) return; // should not happen (engine already ends game if no moves)
 
     // Pick a random move; prefer jumps (they're mandatory anyway)
@@ -260,6 +264,10 @@ export class KernelKingsEngine {
         this.state.mustJump = move.to;
         this.broadcastState();
         this.resetTurnTimer(); // same player, reset timer
+        // If it's the AI's turn, schedule the next jump in the chain
+        if (this.aiSlot !== null && slot === this.aiSlot) {
+          setTimeout(() => this.doAiMove(), 600);
+        }
         return;
       }
     }
