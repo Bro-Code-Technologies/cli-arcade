@@ -958,9 +958,9 @@ def main():
                     for i, (name, rel) in enumerate(games):
                         print(f"    [{i}] {name}")
                     return
-        def pretty_print_scores(game, scores, tab=''):
+        def pretty_print_scores(game, scores, tab='', max_key_len=0, max_player_len=0):
             # Convert snake_case dir names (e.g. byte_bouncer_2) to Title Case
-            print(f"{tab}{game.replace('_', ' ').title()}")
+            print(f"{tab}\033[36m{game.replace('_', ' ').title()}\033[0m")
             if not scores:
                 print("  [INFO] No saved highscores")
                 return
@@ -976,7 +976,9 @@ def main():
                         val_str = f"{val_disp:,}"
                     except Exception:
                         val_str = str(val)
-                    print(f"{tab}  {key}: {player} - {val_str}")
+                    dashes = '-' * (max_player_len - len(player))
+                    key_spacing = max_key_len - len(key) + 1
+                    print(f"{tab}  \033[32m{key}:\033[0m{' ' * key_spacing}{player} \033[32m{dashes}- {val_str}\033[0m")
                 else:
                     print(f"{tab}  {key}: {value}")
 
@@ -993,7 +995,18 @@ def main():
                 out = json.dumps(scores)
                 print(out.replace('"', '\\"'))
             else:
-                pretty_print_scores(disp, scores)
+                # get longest key and player names for aligned display
+                longest_key = 0
+                longest_player = 0
+                for k, v in scores.items():
+                    if isinstance(v, dict) and 'player' in v and 'value' in v:
+                        key_len = len(str(k))
+                        player_len = len(str(v.get('player', '')))
+                        if key_len > longest_key:
+                            longest_key = key_len
+                        if player_len > longest_player:
+                            longest_player = player_len
+                pretty_print_scores(disp, scores, '', longest_key, longest_player)
         else:
             results = get_saved_highscores()
             if raw:
@@ -1001,9 +1014,22 @@ def main():
                 out = json.dumps(mapping)
                 print(out.replace('"', '\\"'))
             else:
-                print("Leaderboard")
+                print('\033[35mLeaderboard\033[0m')
+                longest_key = 0
+                longest_player = 0
                 for r in results:
-                    pretty_print_scores(r['game'], r['scores'], '  ')
+                    scores = r.get('scores', {})
+                    for v in scores.values():
+                        if isinstance(v, dict) and 'player' in v and 'value' in v:
+                            key_len = len(str(v.get('player', '')))
+                            if key_len > longest_player:
+                                longest_player = key_len
+                    for k in scores.keys():
+                        key_len = len(str(k))
+                        if key_len > longest_key:
+                            longest_key = key_len
+                for r in results:
+                    pretty_print_scores(r['game'], r['scores'], '  ', longest_key, longest_player)
         return
 
     if args.cmd == 'list':

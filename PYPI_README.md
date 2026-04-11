@@ -94,3 +94,6 @@ All notable changes to this project will be documented in this file.
 ### 2026.6.0
 - Added Multiplayer games
 - Added two new games: Kernel Kings & Star Ship 2
+
+### 2026.6.1
+- Updated `scores` to use color and unified spacing for better readability.
