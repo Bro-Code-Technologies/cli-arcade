@@ -1,2 +1,3 @@
 appdirs
 prompt_toolkit
+python-socketio[client]>=5.0.0

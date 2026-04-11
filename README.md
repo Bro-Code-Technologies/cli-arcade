@@ -62,13 +62,7 @@ By default, highscores are saved to and loaded from the brocodetech API (`https:
 
 **Override the API URL (e.g., point at a local dev server):**
 ```powershell
-$env:CLI_ARCADE_API_URL = "http://localhost:8080"
-```
-
-**Disable the API and use local JSON files instead:**
-```powershell
-$env:CLI_ARCADE_API_URL = "disabled"
-# or simply unset the variable; when requests is not installed, local mode is also used
+$env:CLI_ARCADE_API_URL = "http://localhost:8000"
 ```
 
 When API mode is active, scores are stored server-side only — no local JSON files are written. When API is disabled, scores fall back to local JSON (see below).

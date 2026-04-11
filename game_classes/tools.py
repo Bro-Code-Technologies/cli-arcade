@@ -132,7 +132,7 @@ GLYPHS_UNICODE = {
     'VBAR': '│',
     'BLOCK': '█',
     'CIRCLE_FILLED': '◉',
-    'CIRCLE': '◌',
+    'CIRCLE': '◎',
     'THUMB': '█',
 }
 GLYPHS_ASCII = {

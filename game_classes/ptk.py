@@ -271,6 +271,10 @@ class _Screen:
         self._buffer = [[" " for _ in range(self._cols)] for _ in range(self._rows)]
         self._attrs = [[0 for _ in range(self._cols)] for _ in range(self._rows)]
 
+    def erase(self):
+        """Alias for clear() — same semantics in this renderer."""
+        self.clear()
+
     def bkgd(self, _ch, _attr=0):
         return None
 

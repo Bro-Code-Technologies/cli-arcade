@@ -46,3 +46,9 @@ pip-wheel-metadata/
 
 # Optional: lockfiles / local config
 *.env
+
+# Node server
+server/node_modules/
+server/dist/
+server/.env
+server/package-lock.json

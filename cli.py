@@ -104,6 +104,15 @@ GAME_MINS = {}
 GAME_DESCS = {}
 GAMES = _discover_games()
 
+# Sentinel path for the manually-added Multiplayer Lobby entry
+_MP_LOBBY_SLUG = '__multiplayer_lobby__'
+GAME_DESCS[_MP_LOBBY_SLUG] = (
+    'Challenge other players in real-time. '
+    'Browse public lobbies or create a private room to play '
+    'multiplayer games with friends online.'
+)
+GAMES.insert(0, ('Multiplayer Lobby', _MP_LOBBY_SLUG))
+
 # Mapping of game slug -> description extracted from the game's source file.
 # Game authors can define a DESCRIPTION variable in their game module; it will
 # be shown in the menu. Example in a game's `game.py`:
@@ -216,7 +225,7 @@ def _menu(stdscr):
         try:
             # determine slug (directory name) for selected game
             rel = GAMES[sel][1]
-            slug = os.path.basename(os.path.dirname(rel))
+            slug = os.path.basename(os.path.dirname(rel)) or rel
             desc = GAME_DESCS.get(slug, '')
 
             # Position the panel 3 spaces to the right of the longest game title.
@@ -374,6 +383,10 @@ def _menu(stdscr):
 def _run_game_by_index(choice, from_menu=False):
     """Load and run the game given by numeric index in GAMES."""
     name, relpath = GAMES[choice]
+    # Multiplayer Lobby sentinel: redirect to the lobby flow instead of loading a game file
+    if relpath == _MP_LOBBY_SLUG:
+        _run_multiplayer()
+        return
     base = os.path.dirname(__file__)
     path = os.path.join(base, relpath)
     if not os.path.exists(path):
@@ -435,6 +448,9 @@ def _run_game_by_index(choice, from_menu=False):
 
 def _reset_game_by_index(choice, yes=False):
     name, relpath = GAMES[choice]
+    if relpath == _MP_LOBBY_SLUG:
+        print(f"  [INFO] '{name}' has no highscores to reset.")
+        return
     base = os.path.dirname(__file__)
     game_dir = os.path.dirname(os.path.join(base, relpath))
     # find highscores files (common pattern in project) and user-data highscores
@@ -526,6 +542,164 @@ def _reset_all_games(yes=False):
                     pass
     except Exception:
         pass
+
+def _run_multiplayer(player_name='Player'):
+    """Connect to /cli-arcade-mp, run lobby flow, launch game when ready."""
+    import os as _os
+
+    try:
+        from game_classes.socket_client import SocketClient, _HAS_SOCKETIO
+    except ImportError:
+        print('  [ERROR] Failed to import SocketClient. Is game_classes installed?')
+        return
+
+    if not _HAS_SOCKETIO:
+        print('  [ERROR] python-socketio is not installed.')
+        print('  [INFO]  Run: pip install python-socketio[client]')
+        return
+
+    def _mp_main(stdscr):
+        from game_classes.tools import init_ptk
+        from game_classes.lobby import run_lobby_flow
+        from game_classes.tools import is_enter_key as _is_enter
+        init_ptk(stdscr)
+
+        # Prompt for player name (same rules as single-player menu)
+        rows, cols = stdscr.getmaxyx()
+        max_len = 50
+        name_buf = ''
+        stdscr.nodelay(False)
+        while True:
+            try:
+                stdscr.erase()
+                prompt = f'Enter your name (max {max_len}): {name_buf}'
+                hint = 'Press ENTER to confirm, ESC to cancel'
+                stdscr.addstr(rows // 2 - 1, 2, 'Multiplayer Lobby',
+                              ptk.color_pair(ptk.COLOR_CYAN) | ptk.A_BOLD)
+                stdscr.addstr(rows // 2 + 1, 2, prompt)
+                stdscr.addstr(rows // 2 + 2, 2, hint, ptk.color_pair(ptk.COLOR_WHITE))
+                stdscr.refresh()
+            except Exception:
+                pass
+            ch = stdscr.getch()
+            if _is_enter(ch):
+                entered_name = name_buf.strip() or 'Player'
+                break
+            elif ch == 27:
+                return
+            elif ch in (ptk.KEY_BACKSPACE, 127, 8):
+                name_buf = name_buf[:-1]
+            elif 32 <= ch <= 126 and len(name_buf) < max_len:
+                name_buf += chr(ch)
+
+        # Connect
+        socket_client = SocketClient()
+        rows, cols = stdscr.getmaxyx()
+        try:
+            stdscr.erase()
+            stdscr.addstr(rows // 2, 2, 'Connecting to server...', ptk.color_pair(ptk.COLOR_CYAN))
+            stdscr.refresh()
+        except Exception:
+            pass
+
+        ok = socket_client.connect(player_name=entered_name)
+        if not ok:
+            try:
+                stdscr.erase()
+                stdscr.addstr(rows // 2, 2,
+                              f'Connection failed: {socket_client.last_error()}'[:cols - 4],
+                              ptk.color_pair(ptk.COLOR_RED) | ptk.A_BOLD)
+                stdscr.addstr(rows // 2 + 1, 2, 'Press any key to exit.')
+                stdscr.refresh()
+            except Exception:
+                pass
+            try:
+                stdscr.nodelay(False)
+                stdscr.getch()
+            except Exception:
+                pass
+            return
+
+        try:
+            while True:
+                result = run_lobby_flow(stdscr, socket_client, entered_name)
+                if result.get('action') != 'start':
+                    break
+
+                game_data = result.get('data', {})
+                game_type = game_data.get('gameType', '')
+
+                launched = _launch_mp_game(stdscr, socket_client, game_data, entered_name)
+                if not launched:
+                    # Show error and return to lobby
+                    try:
+                        stdscr.erase()
+                        stdscr.addstr(rows // 2, 2,
+                                      f'Cannot launch {game_type}: game module not found.',
+                                      ptk.color_pair(ptk.COLOR_RED))
+                        stdscr.addstr(rows // 2 + 1, 2, 'Press any key...')
+                        stdscr.refresh()
+                        stdscr.nodelay(False)
+                        stdscr.getch()
+                    except Exception:
+                        pass
+                    continue
+                # After game, loop back to lobby flow
+        finally:
+            socket_client.disconnect()
+
+    try:
+        verify_terminal_size('Multiplayer Lobby', 70, 20)
+    except SystemExit:
+        return
+
+    try:
+        ptk.wrapper(_mp_main)
+    except KeyboardInterrupt:
+        try:
+            ptk.endwin()
+        except Exception:
+            pass
+
+
+def _launch_mp_game(stdscr, socket_client, game_data, player_name):
+    """Import and run the appropriate multiplayer game class. Returns True if launched."""
+    game_type = game_data.get('gameType', '')
+
+    if game_type == 'star_ship_2':
+        try:
+            base = os.path.dirname(__file__)
+            import importlib.util as _ilu
+            path = os.path.join(base, 'games_multiplayer', 'star_ship_2', 'game.py')
+            if not os.path.exists(path):
+                return False
+            spec = _ilu.spec_from_file_location('mp_star_ship_2', path)
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            game = mod.Game(stdscr, player_name, socket_client, game_data)
+            game.run()
+            return True
+        except Exception as e:
+            return False
+
+    elif game_type == 'kernel_kings':
+        try:
+            base = os.path.dirname(__file__)
+            import importlib.util as _ilu
+            path = os.path.join(base, 'games_multiplayer', 'kernel_kings', 'game.py')
+            if not os.path.exists(path):
+                return False
+            spec = _ilu.spec_from_file_location('mp_kernel_kings', path)
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            game = mod.Game(stdscr, player_name, socket_client, game_data)
+            game.run()
+            return True
+        except Exception:
+            return False
+
+    return False
+
 
 # CLI version: read from setup.cfg to keep a single source of truth
 def _read_version_from_setupcfg():
