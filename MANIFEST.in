@@ -3,7 +3,9 @@ include LICENSE
 include setup.cfg
 recursive-include game_classes *
 recursive-include games *
+recursive-include games_multiplayer *
 recursive-exclude ignore *
+recursive-exclude server *
 global-exclude __pycache__
 prune *.egg-info
 global-exclude *.egg-info/*

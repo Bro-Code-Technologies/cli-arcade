@@ -37,12 +37,9 @@ _TIMEOUT = 5
 _session = None
 
 
-_DEFAULT_API_URL = 'https://brocodetech.com'
-
-
 def _base_url():
     """Return the configured API base URL (stripped of trailing slash), or empty string."""
-    return os.environ.get('CLI_ARCADE_API_URL', _DEFAULT_API_URL).rstrip('/')
+    return os.environ.get('CLI_ARCADE_API_URL', 'https://brocodetech.com').rstrip('/')
 
 
 def is_enabled():

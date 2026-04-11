@@ -90,3 +90,7 @@ All notable changes to this project will be documented in this file.
 
 ### 2026.5.1
 - Removed broken game `Prompt Hopper`
+
+### 2026.6.0
+- Added Multiplayer games
+- Added two new games: Kernel Kings & Star Ship 2

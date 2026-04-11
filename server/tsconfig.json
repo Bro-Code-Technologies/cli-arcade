@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "express"],
+    "sourceMap": true,
+    "lib": ["esnext"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}
