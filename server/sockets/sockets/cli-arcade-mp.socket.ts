@@ -1,6 +1,9 @@
 import { Server, Socket } from 'socket.io';
+import { socketAuth } from '../middleware/socket-auth.middleware';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import { sanitize } from '../../_utils/validation';
+import { cliaPresenceTracker } from '../clia-presence.tracker';
 import {
   ILobby,
   ILobbyInfo,
@@ -14,6 +17,9 @@ import {
 // Re-export types with local aliases
 type GameType = 'star_ship_2' | 'kernel_kings';
 type LobbyStatus = 'waiting' | 'starting' | 'in_game' | 'finished';
+
+const VALID_GAME_TYPES = new Set<string>(['star_ship_2', 'kernel_kings']);
+const LOBBY_ID_REGEX = /^[0-9a-f]{8}$/;
 
 // ── In-memory store ───────────────────────────────────────────────────────────
 
@@ -128,7 +134,11 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
 
   setInterval(() => purgeStaleLobbies(mp), 60_000);
 
+  mp.use(socketAuth);
+
   mp.on('connection', (socket: Socket) => {
+    cliaPresenceTracker.addConnection('multiplayer');
+
     const playerName: string =
       (socket.handshake.auth?.playerName as string | undefined) ?? 'Player';
 
@@ -144,9 +154,29 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
         return;
       }
 
+      // Validate gameType
+      if (payload.gameType !== undefined && !VALID_GAME_TYPES.has(payload.gameType)) {
+        socket.emit('lobby:error', { message: 'Invalid game type.', code: 'INVALID_PAYLOAD' });
+        return;
+      }
+
+      // Validate maxPlayers is an integer 1–4
+      const rawMax = payload.maxPlayers ?? 2;
+      if (!Number.isInteger(rawMax) || rawMax < 1 || rawMax > 4) {
+        socket.emit('lobby:error', { message: 'maxPlayers must be an integer between 1 and 4.', code: 'INVALID_PAYLOAD' });
+        return;
+      }
+
       const gameType: GameType = payload.gameType ?? 'star_ship_2';
-      const maxPlayers = Math.min(4, Math.max(1, payload.maxPlayers ?? 2));
-      const name = (payload.playerName ?? playerName).slice(0, 20) || 'Player';
+      const maxPlayers = rawMax as number;
+      const rawName = typeof payload.playerName === 'string' ? payload.playerName : playerName;
+      const name = sanitize(rawName).slice(0, 20) || 'Player';
+
+      // Cap password length
+      if (typeof payload.password === 'string' && payload.password.length > 50) {
+        socket.emit('lobby:error', { message: 'Password exceeds maximum length.', code: 'INVALID_PAYLOAD' });
+        return;
+      }
 
       let passwordHash: string | null = null;
       if (payload.password) {
@@ -182,7 +212,23 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
     });
 
     // ── lobby:join ──────────────────────────────────────────────────────────
-    socket.on('lobby:join', async (payload: ILobbyJoinPayload) => {
+    socket.on('lobby:join', async (payload: ILobbyJoinPayload) => {      // Validate lobbyId format
+      if (typeof payload.lobbyId !== 'string' || !LOBBY_ID_REGEX.test(payload.lobbyId)) {
+        socket.emit('lobby:error', { message: 'Invalid lobby ID.', code: 'INVALID_PAYLOAD' });
+        return;
+      }
+
+      // Sanitize playerName
+      if (payload.playerName !== undefined && typeof payload.playerName !== 'string') {
+        socket.emit('lobby:error', { message: 'Invalid player name.', code: 'INVALID_PAYLOAD' });
+        return;
+      }
+
+      // Cap password length
+      if (typeof payload.password === 'string' && payload.password.length > 50) {
+        socket.emit('lobby:error', { message: 'Password exceeds maximum length.', code: 'INVALID_PAYLOAD' });
+        return;
+      }
       const lobby = lobbies.get(payload.lobbyId);
       if (!lobby) {
         socket.emit('lobby:error', { message: 'Lobby not found.', code: 'NOT_FOUND' });
@@ -205,7 +251,8 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
         }
       }
 
-      const name = (payload.playerName ?? playerName).slice(0, 20) || 'Player';
+      const rawJoinName = typeof payload.playerName === 'string' ? payload.playerName : playerName;
+      const name = sanitize(rawJoinName).slice(0, 20) || 'Player';
       const slot = lobby.players.length;
       const newPlayer: ILobbyPlayer = { socketId: socket.id, name, slot };
       lobby.players.push(newPlayer);
@@ -236,6 +283,7 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
     socket.on('lobby:start', async () => {
       const lobby = findLobbyBySocket(socket.id);
       if (!lobby) return;
+      if (lobby.status !== 'waiting') return;
       if (lobby.hostSocketId !== socket.id) {
         socket.emit('lobby:error', { message: 'Only the host can start the game.', code: 'NOT_HOST' });
         return;
@@ -278,6 +326,9 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
       // game:start and gets silently dropped by the client lobby poller.
       await new Promise<void>((resolve) => setTimeout(resolve, 400));
 
+      // Notify tracker that a game has started
+      cliaPresenceTracker.gameStarted(lobby.lobbyId, lobby.gameType, lobby.players.length);
+
       // Start the appropriate engine
       if (lobby.gameType === 'star_ship_2') {
         const engine = new StarShip2Engine(lobby, mp, arenaWidth, arenaHeight);
@@ -294,9 +345,14 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
     socket.on('game:report_size', (payload: IGameReportSizePayload) => {
       const lobby = findLobbyBySocket(socket.id);
       if (!lobby) return;
+      // Validate bounds: cols 20–500, rows 10–200
+      const cols = payload.cols ?? 80;
+      const rows = payload.rows ?? 24;
+      if (!Number.isInteger(cols) || cols < 20 || cols > 500) return;
+      if (!Number.isInteger(rows) || rows < 10 || rows > 200) return;
       const sizeMap = pendingSizes.get(lobby.lobbyId);
       if (sizeMap) {
-        sizeMap.set(socket.id, { cols: payload.cols ?? 80, rows: payload.rows ?? 24 });
+        sizeMap.set(socket.id, { cols, rows });
       }
     });
 
@@ -304,9 +360,16 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
     socket.on('game:input', (payload: { direction: [number, number]; tick: number }) => {
       const lobby = findLobbyBySocket(socket.id);
       if (!lobby) return;
+      // Validate direction: array of exactly 2 integers each in [-1, 0, 1], non-zero vector required
+      const { direction, tick } = payload;
+      if (!Array.isArray(direction) || direction.length !== 2) return;
+      if (![-1, 0, 1].includes(direction[0]) || ![-1, 0, 1].includes(direction[1])) return;
+      if (direction[0] === 0 && direction[1] === 0) return; // zero-vector would freeze ship permanently
+      // Validate tick: non-negative integer
+      if (!Number.isInteger(tick) || tick < 0) return;
       const engine = gameEngines.get(lobby.lobbyId);
       if (engine instanceof StarShip2Engine) {
-        engine.handleInput(socket.id, payload.direction);
+        engine.handleInput(socket.id, direction);
       }
     });
 
@@ -314,15 +377,25 @@ export const registerCliArcadeMultiplayer = (io: Server): void => {
     socket.on('game:move', (payload: { from: { row: number; col: number }; to: { row: number; col: number } }) => {
       const lobby = findLobbyBySocket(socket.id);
       if (!lobby) return;
+      // Validate from/to: both must have row and col integers in range 0–7
+      const { from, to } = payload;
+      if (!from || !to) return;
+      const isValidCoord = (c: unknown): c is { row: number; col: number } =>
+        c !== null &&
+        typeof c === 'object' &&
+        Number.isInteger((c as Record<string, unknown>).row) &&
+        Number.isInteger((c as Record<string, unknown>).col) &&
+        (c as Record<string, any>).row >= 0 && (c as Record<string, any>).row <= 7 &&
+        (c as Record<string, any>).col >= 0 && (c as Record<string, any>).col <= 7;
+      if (!isValidCoord(from) || !isValidCoord(to)) return;
       const engine = gameEngines.get(lobby.lobbyId);
       if (engine instanceof KernelKingsEngine) {
-        engine.handleMove(socket.id, payload.from, payload.to);
+        engine.handleMove(socket.id, from, to);
       }
     });
 
     // ── disconnect ───────────────────────────────────────────────────────────
-    socket.on('disconnect', () => {
-      handleLeave(socket, mp);
+    socket.on('disconnect', () => {      cliaPresenceTracker.removeConnection('multiplayer');      handleLeave(socket, mp);
       createRateMap.delete(socket.id);
     });
   });
@@ -335,14 +408,11 @@ function handleLeave(socket: Socket, mp: ReturnType<Server['of']>): void {
   if (!lobby) return;
 
   const wasHost = lobby.hostSocketId === socket.id;
-  lobby.players = lobby.players.filter((p) => p.socketId !== socket.id);
   lobby.lastActiveAt = Date.now();
 
-  // Leave the socket room so the player never receives stale events for this lobby
-  socket.leave(`lobby:${lobby.lobbyId}`);
-
-  // Notify game engine only when a game is actually in progress (prevents stale timers
-  // from firing into a subsequent game after this player presses Enter on the game-over screen)
+  // Notify game engine BEFORE removing the player from lobby.players so the engine
+  // can find the player by socketId (e.g. to set grace timers or mark ship dead).
+  // This must happen here while lobby.players still contains the leaving player.
   const engine = gameEngines.get(lobby.lobbyId);
   if (lobby.status === 'in_game') {
     if (engine instanceof KernelKingsEngine) {
@@ -352,8 +422,15 @@ function handleLeave(socket: Socket, mp: ReturnType<Server['of']>): void {
     }
   }
 
+  // Now remove the player and leave the socket room
+  lobby.players = lobby.players.filter((p) => p.socketId !== socket.id);
+
+  // Leave the socket room so the player never receives stale events for this lobby
+  socket.leave(`lobby:${lobby.lobbyId}`);
+
   if (lobby.players.length === 0) {
-    // Dissolve empty lobby
+    // Dissolve empty lobby — end game tracking unconditionally (idempotent)
+    cliaPresenceTracker.gameEnded(lobby.lobbyId);
     lobbies.delete(lobby.lobbyId);
     gameEngines.delete(lobby.lobbyId);
     mp.emit('lobby:list', publicLobbies());
@@ -365,16 +442,26 @@ function handleLeave(socket: Socket, mp: ReturnType<Server['of']>): void {
     mp.to(`lobby:${lobby.lobbyId}`).emit('lobby:dissolved', { reason: 'Host left the lobby.' });
     lobbies.delete(lobby.lobbyId);
     mp.emit('lobby:list', publicLobbies());
-  } else if (wasHost && lobby.status === 'in_game') {
-    // Host left during a game — dissolve and notify remaining players
+  } else if (wasHost && lobby.status === 'starting') {
+    // Host left during arena size negotiation — dissolve before the engine is created
+    mp.to(`lobby:${lobby.lobbyId}`).emit('lobby:dissolved', { reason: 'Host left before the game started.' });
+    lobbies.delete(lobby.lobbyId);
+    mp.emit('lobby:list', publicLobbies());
+  } else if (wasHost && (lobby.status === 'in_game' || lobby.status === 'finished')) {
+    // Host left during or after a game — dissolve and notify remaining players
     mp.to(`lobby:${lobby.lobbyId}`).emit('lobby:dissolved', { reason: 'Host left the game.' });
     if (engine instanceof StarShip2Engine || engine instanceof KernelKingsEngine) {
       engine.stop();
     }
+    cliaPresenceTracker.gameEnded(lobby.lobbyId);
     gameEngines.delete(lobby.lobbyId);
     lobbies.delete(lobby.lobbyId);
     mp.emit('lobby:list', publicLobbies());
   } else {
+    // Non-host player left — update player count if game is in progress
+    if (lobby.status === 'in_game') {
+      cliaPresenceTracker.gamePlayerCountChanged(lobby.lobbyId, lobby.players.length);
+    }
     mp.to(`lobby:${lobby.lobbyId}`).emit('lobby:player_left', {
       socketId: socket.id,
       players: lobby.players,

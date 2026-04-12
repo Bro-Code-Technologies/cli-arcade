@@ -6,6 +6,9 @@ highscores.json
 save_data
 save_data_cache
 
+# Local dev server score data
+server/data/
+
 # Byte-compiled / cache
 __pycache__/
 *.py[cod]

@@ -6,6 +6,7 @@ import {
   PieceOwner,
   ICoord,
 } from '../../cli-arcade-mp.interfaces';
+import { cliaPresenceTracker } from '../../clia-presence.tracker';
 
 const TURN_TIMEOUT_MS = 60_000;       // 60 seconds per turn
 const DISCONNECT_GRACE_MS = 15_000;   // 15 second grace period on disconnect
@@ -102,6 +103,8 @@ export class KernelKingsEngine {
   private moveCount = 0;
   /** Slot number of the AI player, or null for 2-player human games */
   private aiSlot: PieceOwner | null = null;
+  /** Pending AI move timer — tracked so it can be cancelled on stop/endGame */
+  private aiMoveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(lobby: ILobby, mp: ReturnType<Server['of']>) {
     this.lobby = lobby;
@@ -151,12 +154,13 @@ export class KernelKingsEngine {
     }, 2000);
     // If AI goes first (shouldn't happen - human is slot 0, but guard anyway)
     if (this.aiSlot !== null && this.state.turn === this.aiSlot) {
-      setTimeout(() => this.doAiMove(), 800);
+      this.aiMoveTimer = setTimeout(() => this.doAiMove(), 800);
     }
   }
 
   /** Play a random legal move for the AI, including multi-jump chains. */
   private doAiMove(): void {
+    this.aiMoveTimer = null; // clear the reference — timer has fired
     if (this.aiSlot === null) return;
     if (this.state.turn !== this.aiSlot) return;
 
@@ -176,6 +180,7 @@ export class KernelKingsEngine {
   stop(): void {
     this.clearTurnTimer();
     if (this.heartbeat !== null) { clearInterval(this.heartbeat); this.heartbeat = null; }
+    if (this.aiMoveTimer !== null) { clearTimeout(this.aiMoveTimer); this.aiMoveTimer = null; }
     for (const socketId of Array.from(this.disconnectTimers.keys())) {
       this.clearDisconnectTimer(socketId);
     }
@@ -266,7 +271,7 @@ export class KernelKingsEngine {
         this.resetTurnTimer(); // same player, reset timer
         // If it's the AI's turn, schedule the next jump in the chain
         if (this.aiSlot !== null && slot === this.aiSlot) {
-          setTimeout(() => this.doAiMove(), 600);
+          this.aiMoveTimer = setTimeout(() => this.doAiMove(), 600);
         }
         return;
       }
@@ -289,7 +294,7 @@ export class KernelKingsEngine {
 
     // Schedule AI move if it's now the AI's turn
     if (this.aiSlot !== null && this.state.turn === this.aiSlot) {
-      setTimeout(() => this.doAiMove(), 600);
+      this.aiMoveTimer = setTimeout(() => this.doAiMove(), 600);
     }
   }
 
@@ -369,6 +374,7 @@ export class KernelKingsEngine {
   private endGame(winner: PieceOwner | null, reason: 'capture_all' | 'no_moves' | 'draw' | 'timeout' | 'disconnect'): void {
     this.clearTurnTimer();
     if (this.heartbeat !== null) { clearInterval(this.heartbeat); this.heartbeat = null; }
+    if (this.aiMoveTimer !== null) { clearTimeout(this.aiMoveTimer); this.aiMoveTimer = null; }
     for (const socketId of this.disconnectTimers.keys()) {
       this.clearDisconnectTimer(socketId);
     }
@@ -380,6 +386,7 @@ export class KernelKingsEngine {
       reason,
       players: this.state.players,
     });
+    cliaPresenceTracker.gameEnded(this.lobby.lobbyId);
   }
 
   // ── Broadcast ─────────────────────────────────────────────────────────────

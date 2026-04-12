@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { ILobby, IStarShip2State, ISSPlayer } from '../../cli-arcade-mp.interfaces';
+import { cliaPresenceTracker } from '../../clia-presence.tracker';
 
 const TICK_MS = 100; // 10 Hz
 const STAR_VALUE = 10;
@@ -240,9 +241,16 @@ export class StarShip2Engine {
   }
 
   handleDisconnect(socketId: string): void {
-    // Ship continues straight until it hits something
-    // No special handling needed — next tick it just keeps moving.
-    const player = this.lobby.players.find((p) => p.socketId === socketId);
+    // Mark the disconnected player's ship as dead immediately so the game
+    // can detect end-of-game on the next tick rather than waiting for the
+    // ghost ship to drift into something (which could take 10+ minutes).
+    const player = this.state.players.find(
+      (p) => this.lobby.players.find((lp) => lp.slot === p.slot)?.socketId === socketId,
+    );
+    if (player && player.alive) {
+      player.alive = false;
+      this.emitPlayerDied(player.slot, 'wall');
+    }
   }
 
   // ── Star placement ─────────────────────────────────────────────────────────
@@ -297,6 +305,7 @@ export class StarShip2Engine {
 
     this.mp.to(`lobby:${this.lobby.lobbyId}`).emit('game:over', { rankings });
     this.lobby.status = 'finished';
+    cliaPresenceTracker.gameEnded(this.lobby.lobbyId);
   }
 
   private emitPlayerDied(slot: number, cause: 'wall' | 'self' | 'collision'): void {

@@ -3,7 +3,6 @@ from game_classes.tools import verify_terminal_size
 import os
 import importlib.util
 import argparse
-import glob
 import sys
 import re
 import time
@@ -165,6 +164,8 @@ def _menu(stdscr):
             pass
     sel = 0
     top = 0
+    _hs_cache = {}  # slug -> scores dict; populated once per slug, not every frame
+    _last_hs_slug = None
     while True:
         stdscr.clear()
         h, w = stdscr.getmaxyx()
@@ -252,11 +253,15 @@ def _menu(stdscr):
             except Exception:
                 wrapped = []
 
-            # gather highscores
+            # gather highscores (cached per slug — avoid an API call on every render frame)
             try:
-                from game_classes.highscores import get_saved_highscores
-                results = get_saved_highscores(slug)
-                scores = results[0].get('scores') if results else None
+                if slug != _last_hs_slug:
+                    _last_hs_slug = slug
+                    if slug not in _hs_cache:
+                        from game_classes.highscores import get_saved_highscores
+                        results = get_saved_highscores(slug)
+                        _hs_cache[slug] = results[0].get('scores') if results else None
+                scores = _hs_cache.get(slug)
             except Exception:
                 scores = None
 
@@ -446,103 +451,6 @@ def _run_game_by_index(choice, from_menu=False):
         print(f"  [INFO] Game {name} has no main(stdscr) entry point.")
 
 
-def _reset_game_by_index(choice, yes=False):
-    name, relpath = GAMES[choice]
-    if relpath == _MP_LOBBY_SLUG:
-        print(f"  [INFO] '{name}' has no highscores to reset.")
-        return
-    base = os.path.dirname(__file__)
-    game_dir = os.path.dirname(os.path.join(base, relpath))
-    # find highscores files (common pattern in project) and user-data highscores
-    files = glob.glob(os.path.join(game_dir, 'highscores*.json'))
-    # try user-data location via HighScores
-    try:
-        from game_classes.highscores import HighScores
-        slug = os.path.basename(game_dir)
-        hs = HighScores(slug)
-        user_path = hs._path()
-        if user_path and os.path.exists(user_path):
-            files.append(user_path)
-    except Exception:
-        # if import fails or path not available, ignore
-        pass
-    if not files:
-        print(f"  [INFO] No highscore files found for '{name}' ({game_dir}).")
-        return
-    # dedupe and present
-    files = sorted(set(files))
-    print(f"  [INFO] Found {len(files)} highscore file(s) for '{name}':")
-    for f in files:
-        print(f'    [{choice}] {f}')
-    if not yes:
-        ans = input(f"  [ACTION] Delete these files for '{name}'? [y/N]: ")
-        if not ans.lower().startswith('y'):
-            print('  [CANCELED]')
-            return
-    for f in files:
-        try:
-            os.remove(f)
-            print(f"  [DELETED] {f}")
-        except Exception as e:
-            print(f"  [ERROR] Failed to delete {f}: {e}")
-    # Also remove from API when configured.
-    try:
-        from game_classes import api as _cli_api
-        if _cli_api.is_enabled():
-            slug = os.path.basename(game_dir)
-            _cli_api.delete_scores(slug)
-    except Exception:
-        pass
-
-
-def _reset_all_games(yes=False):
-    base = os.path.dirname(__file__)
-    all_files = []
-    for name, rel in GAMES:
-        game_dir = os.path.dirname(os.path.join(base, rel))
-        all_files.extend(glob.glob(os.path.join(game_dir, 'highscores*.json')))
-        # include user-data highscores when present
-        try:
-            from game_classes.highscores import HighScores
-            slug = os.path.basename(game_dir)
-            hs = HighScores(slug)
-            user_path = hs._path()
-            if user_path and os.path.exists(user_path):
-                all_files.append(user_path)
-        except Exception:
-            pass
-    if not all_files:
-        print('  [INFO] No highscore files found for any game.')
-        return
-    # dedupe list before showing
-    all_files = sorted(set(all_files))
-    print(f'  [INFO] Found {len(all_files)} highscore file(s):')
-    for i, f in enumerate(all_files):
-        print(f'    [{i}] {f}')
-    if not yes:
-        ans = input('  [ACTION] Delete all these highscore files? [y/N]: ')
-        if not ans.lower().startswith('y'):
-            print('  [CANCELED]')
-            return
-    for f in all_files:
-        try:
-            os.remove(f)
-            print(f"  [DELETED] {f}")
-        except Exception as e:
-            print(f"  [ERROR] Failed to delete {f}: {e}")
-    # Also remove from API when configured.
-    try:
-        from game_classes import api as _cli_api
-        if _cli_api.is_enabled():
-            for _name, _rel in GAMES:
-                _slug = os.path.basename(os.path.dirname(os.path.join(base, _rel)))
-                try:
-                    _cli_api.delete_scores(_slug)
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
 def _run_multiplayer(player_name='Player'):
     """Connect to /cli-arcade-mp, run lobby flow, launch game when ready."""
     import os as _os
@@ -721,7 +629,6 @@ def main():
         f'  %(prog)s [-h|--help] [-v|--version]',
         f'  %(prog)s list [-h]',
         f'  %(prog)s run [-h] <index|name>',
-        f'  %(prog)s reset [-h] [<index|name>] [-y|--yes]',
         f'  %(prog)s scores [-h] [<index|name>] [-r|--raw]',
     ]
     aliases = _read_console_aliases()
@@ -753,15 +660,6 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     runp.add_argument('game', help='Game name or zero-based index')
-    resetp = sub.add_parser(
-        'reset',
-        help='Reset highscores (delete highscore files)',
-        description='Delete highscores for one game or all games. Use with care.',
-        epilog='Examples:\n  %(prog)s\n  %(prog)s -y\n  %(prog)s 0\n  %(prog)s "Byte Bouncer" -y\n',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    resetp.add_argument('game', nargs='?', help='Optional game name or zero-based index (omit to reset all)')
-    resetp.add_argument('-yes', '--yes', action='store_true', help='Do not prompt; proceed with deletion')
     # Add scores command
     scoresp = sub.add_parser(
         'scores',
@@ -1074,33 +972,6 @@ def main():
             _run_game_by_index(choice, from_menu=False)
         except Exception as e:
             print(f"  [ERROR] Error running game: {e}")
-        return
-
-    if args.cmd == 'reset':
-        token = args.game
-        yes = getattr(args, 'yes', False)
-        if token is None:
-            _reset_all_games(yes=yes)
-            return
-        # resolve token to index similar to 'run'
-        choice = None
-        try:
-            idx = int(token)
-            if 0 <= idx < len(GAMES):
-                choice = idx
-            else:
-                print(f"  [INFO] Index out of range: {idx}")
-                return
-        except Exception:
-            lowered = token.lower()
-            for i, (name, _) in enumerate(GAMES):
-                if name.lower() == lowered:
-                    choice = i
-                    break
-            if choice is None:
-                print(f"  [INFO] Game not found: {token}")
-                return
-        _reset_game_by_index(choice, yes=yes)
         return
 
     # Interactive menu loop: verify terminal size before showing menu each time,
